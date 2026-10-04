@@ -4,6 +4,7 @@ import { Pause, Play } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { artistNames, year } from '../lib/format'
+import { useIsMobile } from '../lib/hooks'
 import { playlistTotal } from '../lib/spotify'
 import type { AlbumRef, MediaItem, Playlist } from '../lib/types'
 import { usePlayer } from '../state/player'
@@ -64,13 +65,14 @@ export function PlayButton({
 
 export function MediaCard({ item, subtitle }: { item: MediaItem; subtitle?: string }) {
   const player = usePlayer()
+  const mobile = useIsMobile()
   const playing = player.isPlayingContext(item.uri)
   const round = item.type === 'artist'
   return (
     <Link to={linkTo(item)} className="card">
       <div style={{ position: 'relative' }}>
-        <Cover images={item.images} round={round} shadow alt={item.name} />
-        <PlayButton contextUri={item.uri} className={`small card-play${playing ? ' visible' : ''}`} size={22} />
+        <Cover images={item.images} round={round} shadow alt={item.name} glow={mobile ? false : 'hover'} />
+        <PlayButton contextUri={item.uri} className={`small card-play${playing ? ' visible' : ''}`} size={20} />
       </div>
       <div className="card-title ellipsis" style={playing ? { color: 'var(--accent)' } : undefined}>
         {item.name}
@@ -84,7 +86,7 @@ export function Shelf({ title, to, children }: { title: string; to?: string; chi
   return (
     <section className="section page-pad">
       <div className="section-head">
-        <h2 className="section-title">{to ? <Link to={to} className="link-hover">{title}</Link> : title}</h2>
+        <h2 className="section-title">{to ? <Link to={to}>{title}</Link> : title}</h2>
         {to && (
           <Link to={to} className="section-link">
             Alle anzeigen

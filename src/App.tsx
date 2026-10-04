@@ -12,6 +12,7 @@ import { Search } from './pages/Search'
 import { SettingsPage } from './pages/Settings'
 import { Setup } from './pages/Setup'
 import { Welcome } from './pages/Welcome'
+import { AmbientProvider } from './state/ambient'
 import { PlayerProvider } from './state/player'
 import { useSession } from './state/session'
 import { UiProvider } from './state/ui'
@@ -42,6 +43,7 @@ export function App({ authError, returnTo }: { authError?: string; returnTo?: st
     <HashRouter>
       <UiProvider>
         <PlayerProvider>
+          <AmbientProvider>
           <ReturnTo path={returnTo} />
           <Routes>
             <Route path="/einrichtung" element={<Setup />} />
@@ -58,6 +60,7 @@ export function App({ authError, returnTo }: { authError?: string; returnTo?: st
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
+          </AmbientProvider>
         </PlayerProvider>
       </UiProvider>
     </HashRouter>

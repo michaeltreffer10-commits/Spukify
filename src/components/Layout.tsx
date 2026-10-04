@@ -4,13 +4,14 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useIsMobile, useScrolled } from '../lib/hooks'
 import { useFollowedArtists, useMe, useMyPlaylists, useSavedAlbums, useSavedTracks } from '../lib/queries'
 import type { MediaItem } from '../lib/types'
+import { AmbientBackdrop } from '../state/ambient'
 import { useUi } from '../state/ui'
+import { Dock } from './Dock'
 import { LibraryRow } from './Media'
 import { Logo } from './Logo'
 import { MiniPlayer } from './MiniPlayer'
 import { NowPlaying } from './NowPlaying'
 import { AddToPlaylistSheet, CreatePlaylistDialog, DevicePicker, Toasts, TrackMenu } from './Overlays'
-import { PlayerBar } from './PlayerBar'
 
 export function Avatar() {
   const me = useMe()
@@ -23,13 +24,13 @@ export function Avatar() {
   )
 }
 
-/** Kopfleiste oben im Inhaltsbereich (Zurück/Vor am PC, Titel beim Scrollen). */
-export function TopBar({ title, color, children }: { title?: string; color?: string; children?: ReactNode }) {
+/** Kopfleiste oben im Inhaltsbereich (Zurück/Vor, Titel erscheint beim Scrollen). */
+export function TopBar({ title, children }: { title?: string; children?: ReactNode }) {
   const navigate = useNavigate()
   const mobile = useIsMobile()
-  const scrolled = useScrolled(mobile ? 200 : 260)
+  const scrolled = useScrolled(mobile ? 220 : 280)
   return (
-    <div className={`topbar${scrolled ? ' scrolled' : ''}`} style={{ backgroundColor: scrolled ? color ?? '#121212' : 'transparent' }}>
+    <div className={`topbar${scrolled ? ' scrolled' : ''}`}>
       <button type="button" className="round-btn" onClick={() => navigate(-1)} aria-label="Zurück">
         <ChevronLeft size={20} />
       </button>
@@ -63,54 +64,53 @@ function Sidebar() {
   }, [playlists.data, albums.data, artists.data])
 
   return (
-    <aside className="sidebar">
-      <nav className="sidebar-box sidebar-nav">
-        <div className="sidebar-brand">
-          <Logo size={28} /> Spukify
-        </div>
-        <NavLink to="/" end>
-          <House size={24} /> Startseite
+    <aside className="sidebar glass-panel">
+      <div className="sidebar-brand">
+        <Logo size={30} /> Spukify
+      </div>
+      <nav className="sidebar-nav">
+        <NavLink to="/" end className="nav-link">
+          <House size={20} /> Startseite
         </NavLink>
-        <NavLink to="/suche">
-          <Search size={24} /> Suchen
+        <NavLink to="/suche" className="nav-link">
+          <Search size={20} /> Suchen
+        </NavLink>
+        <NavLink to="/bibliothek" className="nav-link">
+          <Library size={20} /> Bibliothek
         </NavLink>
       </nav>
-      <div className="sidebar-box sidebar-library">
-        <div className="sidebar-library-head">
-          <Link to="/bibliothek">
-            <Library size={24} /> Bibliothek
-          </Link>
-          <button type="button" className="icon-btn" aria-label="Playlist erstellen" onClick={() => setCreatePlaylistOpen(true)}>
-            <Plus size={20} />
-          </button>
-        </div>
-        <div className="sidebar-scroll">
-          <LibraryRow
-            item={{ type: 'liked', name: 'Lieblingssongs', uri: 'liked', total: likedTotal }}
-            active={location.pathname === '/lieblingssongs'}
-          />
-          {items.map((item) => (
-            <LibraryRow key={item.uri} item={item} active={location.pathname.endsWith(item.id)} />
-          ))}
-        </div>
+      <div className="sidebar-library-head">
+        <span className="kicker">Deine Sammlung</span>
+        <button type="button" className="icon-btn" aria-label="Playlist erstellen" title="Playlist erstellen" onClick={() => setCreatePlaylistOpen(true)}>
+          <Plus size={18} />
+        </button>
+      </div>
+      <div className="sidebar-scroll">
+        <LibraryRow
+          item={{ type: 'liked', name: 'Lieblingssongs', uri: 'liked', total: likedTotal }}
+          active={location.pathname === '/lieblingssongs'}
+        />
+        {items.map((item) => (
+          <LibraryRow key={item.uri} item={item} active={location.pathname.endsWith(item.id)} />
+        ))}
       </div>
     </aside>
   )
 }
 
-function BottomNav() {
+function TabBar() {
   return (
-    <nav className="bottom-nav">
+    <nav className="tabbar">
       <NavLink to="/" end>
-        <House size={24} />
+        <House size={22} />
         Start
       </NavLink>
       <NavLink to="/suche">
-        <Search size={24} />
+        <Search size={22} />
         Suche
       </NavLink>
       <NavLink to="/bibliothek">
-        <Library size={24} />
+        <Library size={22} />
         Bibliothek
       </NavLink>
     </nav>
@@ -128,18 +128,21 @@ export function Layout() {
   }, [location.pathname])
 
   return (
-    <div className="app">
-      {!mobile && <Sidebar />}
-      <main className="main" ref={mainRef}>
-        <Outlet />
-      </main>
-      {mobile ? (
+    <>
+      <AmbientBackdrop />
+      <div className="app">
+        {!mobile && <Sidebar />}
+        <main className="main" ref={mainRef}>
+          <Outlet />
+        </main>
+        {!mobile && <Dock />}
+      </div>
+      {/* Außerhalb von .app, damit der Glas-Effekt den Inhalt dahinter erfasst */}
+      {mobile && (
         <>
           <MiniPlayer />
-          <BottomNav />
+          <TabBar />
         </>
-      ) : (
-        <PlayerBar />
       )}
       <NowPlaying />
       <DevicePicker />
@@ -147,6 +150,7 @@ export function Layout() {
       <AddToPlaylistSheet />
       <CreatePlaylistDialog />
       <Toasts />
-    </div>
+      <div className="grain" aria-hidden="true" />
+    </>
   )
 }

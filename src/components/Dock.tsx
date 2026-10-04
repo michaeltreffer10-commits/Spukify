@@ -9,8 +9,8 @@ import { DeviceIcon, ProgressBar, TransportControls } from './PlayerControls'
 import { Slider } from './Slider'
 import { ArtistLinks } from './TrackList'
 
-/** Player-Leiste unten am PC – wie bei Spotify. */
-export function PlayerBar() {
+/** Schwebendes Player-Dock am PC. */
+export function Dock() {
   const player = usePlayer()
   const { openDevicePicker, setNowPlayingOpen } = useUi()
   const navigate = useNavigate()
@@ -25,55 +25,76 @@ export function PlayerBar() {
   const onQueue = location.pathname === '/warteschlange'
 
   return (
-    <footer className="playerbar">
-      <div className="pb-left">
+    <footer className="dock">
+      <div className="dock-left">
         {track ? (
           <>
-            <button type="button" onClick={() => setNowPlayingOpen(true)} aria-label="Player im Vollbild öffnen">
-              <Cover images={track.album?.images} size={64} />
+            <button type="button" onClick={() => setNowPlayingOpen(true)} aria-label="Kino-Modus öffnen">
+              <Cover images={track.album?.images} size={64} glow />
             </button>
-            <div className="pb-text">
-              <div className="pb-title ellipsis">
-                {track.album ? <Link to={`/album/${track.album.id}`} className="link-hover">{track.name}</Link> : track.name}
+            <div className="dock-text">
+              <div className="dock-title ellipsis">
+                {track.album ? (
+                  <Link to={`/album/${track.album.id}`} className="link-hover">
+                    {track.name}
+                  </Link>
+                ) : (
+                  track.name
+                )}
               </div>
-              <div className="pb-artist">
+              <div className="dock-artist">
                 <ArtistLinks artists={track.artists} />
               </div>
+              {device && (
+                <button type="button" className="device-chip" onClick={() => openDevicePicker()}>
+                  <DeviceIcon type={device.type} size={12} />
+                  <span className="ellipsis">{device.name}</span>
+                </button>
+              )}
             </div>
-            <LikeButton uri={track.uri} size={16} />
+            <LikeButton uri={track.uri} size={17} />
           </>
         ) : (
-          <div className="pb-text muted" style={{ paddingLeft: 8 }}>
-            {player.ready ? 'Gerade läuft nichts' : ''}
+          <div className="dock-text muted" style={{ paddingLeft: 8 }}>
+            {player.ready && (
+              <>
+                <div className="dock-title" style={{ color: 'var(--text)' }}>
+                  Gerade läuft nichts
+                </div>
+                <button type="button" className="device-chip" onClick={() => openDevicePicker()}>
+                  Gerät wählen
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
 
-      <div className="pb-center">
+      <div className="dock-center">
         <TransportControls />
         <ProgressBar variant="bar" />
       </div>
 
-      <div className="pb-right">
+      <div className="dock-right">
         <button
           type="button"
           className={`icon-btn${onQueue ? ' on' : ''}`}
           aria-label="Warteschlange"
+          title="Warteschlange"
           onClick={() => (onQueue ? navigate(-1) : navigate('/warteschlange'))}
         >
           <ListMusic size={18} />
         </button>
         <button
           type="button"
-          className="icon-btn"
+          className={`icon-btn${device ? ' on' : ''}`}
           aria-label="Mit einem Gerät verbinden"
           onClick={() => openDevicePicker()}
-          style={device ? { color: 'var(--accent)' } : undefined}
           title={device ? `Läuft auf: ${device.name}` : 'Gerät auswählen'}
         >
           <DeviceIcon type={device?.type} size={18} />
         </button>
-        <div className="pb-volume" title={canVolume ? undefined : 'Lautstärke wird auf dem Gerät eingestellt'}>
+        <div className="dock-volume" title={canVolume ? undefined : 'Die Lautstärke stellst du direkt am Gerät ein'}>
           <button
             type="button"
             className="icon-btn"
@@ -90,17 +111,10 @@ export function PlayerBar() {
           </button>
           <Slider value={volume} max={100} onCommit={(v) => player.setVolume(v)} label="Lautstärke" disabled={!canVolume} />
         </div>
-        <button type="button" className="icon-btn" aria-label="Vollbild" onClick={() => setNowPlayingOpen(true)} disabled={!track}>
+        <button type="button" className="icon-btn" aria-label="Kino-Modus" title="Kino-Modus" onClick={() => setNowPlayingOpen(true)} disabled={!track}>
           <Maximize2 size={16} />
         </button>
       </div>
-
-      {device && (
-        <div className="device-banner" role="status">
-          <DeviceIcon type={device.type} size={14} />
-          Wiedergabe auf {device.name}
-        </div>
-      )}
     </footer>
   )
 }

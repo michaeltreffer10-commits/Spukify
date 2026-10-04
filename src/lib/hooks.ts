@@ -24,6 +24,9 @@ export function useDebounced<T>(value: T, ms = 300) {
 }
 
 export interface HeroColor {
+  h: number
+  s: number
+  l: number
   solid: string
   dim: string
 }
@@ -31,7 +34,7 @@ export interface HeroColor {
 const colorCache = new Map<string, HeroColor>()
 
 function fromHsl(h: number, s: number, l: number): HeroColor {
-  return { solid: `hsl(${h} ${s}% ${l}%)`, dim: `hsl(${h} ${s}% ${l}% / 0.35)` }
+  return { h, s, l, solid: `hsl(${h} ${s}% ${l}%)`, dim: `hsl(${h} ${s}% ${l}% / 0.35)` }
 }
 
 function fallbackColor(seed: string): HeroColor {

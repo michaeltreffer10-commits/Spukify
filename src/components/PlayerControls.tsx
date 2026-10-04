@@ -44,7 +44,7 @@ export function TransportControls({ big = false }: { big?: boolean }) {
   const RepeatIcon = s?.repeat_state === 'track' ? Repeat1 : Repeat
   const repeatLabel = s?.repeat_state === 'off' ? 'Wiederholen aktivieren' : s?.repeat_state === 'context' ? 'Song wiederholen' : 'Wiederholen deaktivieren'
   return (
-    <div className={big ? 'np-controls' : 'pb-controls'}>
+    <div className={big ? 'np-controls' : 'controls'}>
       <button
         type="button"
         className={`icon-btn${big ? ' big' : ''}${s?.shuffle_state ? ' on' : ''}`}
@@ -58,7 +58,7 @@ export function TransportControls({ big = false }: { big?: boolean }) {
       <button type="button" className={`icon-btn${big ? ' big' : ''}`} onClick={player.previous} disabled={disabled} aria-label="Zurück">
         <SkipBack size={big ? 32 : 18} fill="currentColor" />
       </button>
-      <button type="button" className={big ? 'np-play' : 'pb-play'} onClick={player.togglePlay} aria-label={s?.is_playing ? 'Pause' : 'Abspielen'}>
+      <button type="button" className={big ? 'np-play' : 'controls-play'} onClick={player.togglePlay} aria-label={s?.is_playing ? 'Pause' : 'Abspielen'}>
         <PlayPauseIcon playing={!!s?.is_playing} size={big ? 30 : iconSize} />
       </button>
       <button type="button" className={`icon-btn${big ? ' big' : ''}`} onClick={player.next} disabled={disabled} aria-label="Weiter">
@@ -105,7 +105,7 @@ export function ProgressBar({ variant }: { variant: 'bar' | 'big' }) {
     )
   }
   return (
-    <div className="pb-progress">
+    <div className="progress-row">
       <span className="time">{formatDuration(shown)}</span>
       {slider}
       <span className="time">{formatDuration(duration)}</span>

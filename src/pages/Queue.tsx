@@ -23,15 +23,15 @@ export function QueuePage() {
       )}
       {current && (
         <section style={{ marginBottom: 24 }}>
-          <h2 className="page-pad muted" style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-            Aktuell läuft
+          <h2 className="page-pad kicker" style={{ marginBottom: 10 }}>
+            Jetzt läuft
           </h2>
           <TrackList items={[{ track: current }]} showHeader={false} showAlbum />
         </section>
       )}
       {upcoming.length > 0 && (
         <section>
-          <h2 className="page-pad muted" style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+          <h2 className="page-pad kicker" style={{ marginBottom: 10 }}>
             Als Nächstes
           </h2>
           <TrackList items={upcoming.map((track) => ({ track }))} showHeader={false} />

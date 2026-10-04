@@ -50,15 +50,12 @@ export function Library() {
 
   return (
     <div className="page">
-      <div
-        className="page-pad"
-        style={{ paddingTop: mobile ? 'calc(16px + var(--safe-top))' : 24, position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface)', paddingBottom: 8 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div className="page-pad sticky-head" style={{ paddingTop: mobile ? 'calc(16px + var(--safe-top))' : 28 }}>
+        <div className="page-head" style={{ marginBottom: 16 }}>
           {mobile && <Avatar />}
-          <h1 style={{ fontSize: mobile ? 24 : 32, fontWeight: 800, flex: 1, letterSpacing: '-0.02em' }}>Bibliothek</h1>
-          <button type="button" className="icon-btn" style={{ color: '#fff' }} aria-label="Playlist erstellen" onClick={() => setCreatePlaylistOpen(true)}>
-            <Plus size={26} />
+          <h1>Bibliothek</h1>
+          <button type="button" className="icon-btn glass" aria-label="Playlist erstellen" title="Playlist erstellen" onClick={() => setCreatePlaylistOpen(true)}>
+            <Plus size={20} />
           </button>
         </div>
         <div className="chips">

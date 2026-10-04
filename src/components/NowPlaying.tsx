@@ -1,10 +1,10 @@
 import { ChevronDown, Ellipsis, ListMusic } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDominantColor } from '../lib/hooks'
-import { usePlaylist } from '../lib/queries'
+import { artistNames } from '../lib/format'
+import { usePlaylist, useQueue } from '../lib/queries'
 import { idFromUri } from '../lib/spotify'
-import { usePlayer } from '../state/player'
+import { DJ_URI, usePlayer } from '../state/player'
 import { useUi } from '../state/ui'
 import { Cover, pickImage } from './Cover'
 import { LikeButton } from './LikeButton'
@@ -14,9 +14,11 @@ import { ArtistLinks } from './TrackList'
 function useContextLabel() {
   const { state } = usePlayer()
   const ctx = state?.context
-  const playlistId = ctx?.type === 'playlist' ? idFromUri(ctx.uri) : undefined
+  const isDj = ctx?.uri === DJ_URI
+  const playlistId = ctx?.type === 'playlist' && !isDj ? idFromUri(ctx.uri) : undefined
   const playlist = usePlaylist(playlistId)
-  if (!ctx) return { kind: 'Wiedergabe', name: state?.item?.album?.name ?? '' }
+  if (!ctx) return { kind: '', name: state?.item?.album?.name ?? '' }
+  if (isDj) return { kind: '', name: 'DJ' }
   if (ctx.uri.endsWith(':collection')) return { kind: 'Playlist', name: 'Lieblingssongs' }
   switch (ctx.type) {
     case 'playlist':
@@ -26,22 +28,21 @@ function useContextLabel() {
     case 'artist':
       return { kind: 'Künstler', name: state?.item?.artists[0]?.name ?? '' }
     default:
-      return { kind: 'Wiedergabe', name: '' }
+      return { kind: '', name: '' }
   }
 }
 
-/** Player im Vollbild – vor allem fürs Handy. Nach unten wischen schließt ihn. */
+/** Kino-Modus: Vollbild-Player mit leuchtendem Cover. Nach unten wischen schließt ihn. */
 export function NowPlaying() {
   const { nowPlayingOpen, setNowPlayingOpen, openDevicePicker, openTrackMenu } = useUi()
   const player = usePlayer()
   const navigate = useNavigate()
   const track = player.state?.item
   const device = player.state?.device
-  const color = useDominantColor(pickImage(track?.album?.images, 300), track?.id)
   const label = useContextLabel()
+  const queue = useQueue(nowPlayingOpen && !!player.state)
   const [dragY, setDragY] = useState(0)
   const start = useRef<number | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!nowPlayingOpen) return
@@ -52,16 +53,16 @@ export function NowPlaying() {
 
   if (!nowPlayingOpen) return null
   const close = () => setNowPlayingOpen(false)
+  const bg = pickImage(track?.album?.images, 300)
+  const upcoming = (queue.data?.queue ?? []).filter(Boolean).slice(0, 4)
 
   return (
     <div
-      ref={ref}
       className="now-playing"
       role="dialog"
-      aria-label="Aktueller Song"
-      style={{ '--np-color': color.solid, transform: dragY ? `translateY(${dragY}px)` : undefined } as React.CSSProperties}
+      aria-label="Kino-Modus"
+      style={{ transform: dragY ? `translateY(${dragY}px)` : undefined, transition: dragY ? 'none' : 'transform .3s' }}
       onTouchStart={(e) => {
-        if ((ref.current?.scrollTop ?? 0) > 0) return
         if ((e.target as HTMLElement).closest('.slider')) return
         start.current = e.touches[0].clientY
       }}
@@ -75,63 +76,82 @@ export function NowPlaying() {
         setDragY(0)
       }}
     >
+      {bg && <div key={bg} className="np-bg" style={{ backgroundImage: `url("${bg}")` }} />}
+
       <div className="np-top">
-        <button type="button" className="icon-btn" style={{ color: '#fff' }} onClick={close} aria-label="Schließen">
-          <ChevronDown size={26} />
+        <button type="button" className="icon-btn glass" onClick={close} aria-label="Schließen">
+          <ChevronDown size={22} />
         </button>
         <div className="np-context">
-          <small>{label.kind === 'Wiedergabe' ? 'Wird abgespielt' : `Wiedergabe aus ${label.kind}`}</small>
-          <strong className="ellipsis" style={{ display: 'block' }}>
-            {label.name}
-          </strong>
+          <div className="kicker">{label.kind ? `Aus ${label.kind}` : 'Jetzt läuft'}</div>
+          <strong className="ellipsis">{label.name}</strong>
         </div>
         <button
           type="button"
-          className="icon-btn"
-          style={{ color: '#fff' }}
+          className="icon-btn glass"
           aria-label="Weitere Optionen"
           disabled={!track}
           onClick={() => track && openTrackMenu({ track })}
         >
-          <Ellipsis size={22} />
+          <Ellipsis size={20} />
         </button>
       </div>
 
-      <div className="np-body">
+      <div className="np-stage">
         <div className="np-cover">
-          <Cover images={track?.album?.images} size={640} />
+          <Cover images={track?.album?.images} size={640} glow />
         </div>
 
-        <div className="np-info">
-          <div className="np-text">
-            <div className="np-title ellipsis">{track?.name ?? 'Gerade läuft nichts'}</div>
-            <div className="np-artist ellipsis" onClick={close}>
-              {track && <ArtistLinks artists={track.artists} />}
+        <div className="np-side">
+          <div className="np-info">
+            <div className="np-text">
+              <div className="np-title">{track?.name ?? 'Gerade läuft nichts'}</div>
+              <div className="np-artist ellipsis" onClick={close}>
+                {track && <ArtistLinks artists={track.artists} />}
+              </div>
             </div>
+            <LikeButton uri={track?.uri} size={26} />
           </div>
-          <LikeButton uri={track?.uri} size={26} />
-        </div>
 
-        <ProgressBar variant="big" />
-        <TransportControls big />
+          <ProgressBar variant="big" />
+          <TransportControls big />
 
-        <div className="np-bottom">
-          <button type="button" className="np-device" onClick={() => openDevicePicker()}>
-            <DeviceIcon type={device?.type} size={18} />
-            <span className="ellipsis">{device ? device.name : 'Gerät auswählen'}</span>
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            style={{ color: '#fff' }}
-            aria-label="Warteschlange"
-            onClick={() => {
-              close()
-              navigate('/warteschlange')
-            }}
-          >
-            <ListMusic size={22} />
-          </button>
+          <div className="np-bottom">
+            <button type="button" className="np-device" onClick={() => openDevicePicker()}>
+              <DeviceIcon type={device?.type} size={16} />
+              <span className="ellipsis">{device ? device.name : 'Gerät auswählen'}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-btn glass"
+              aria-label="Warteschlange"
+              onClick={() => {
+                close()
+                navigate('/warteschlange')
+              }}
+            >
+              <ListMusic size={19} />
+            </button>
+          </div>
+
+          {upcoming.length > 0 && (
+            <div className="np-queue">
+              <div className="kicker" style={{ marginBottom: 8 }}>
+                Als Nächstes
+              </div>
+              {upcoming.map((t, i) => (
+                <div key={`${t.uri}-${i}`} className="np-queue-row">
+                  <Cover images={t.album?.images} size={64} />
+                  <div style={{ minWidth: 0 }}>
+                    <div className="ellipsis" style={{ color: 'var(--text)', fontWeight: 600 }}>
+                      {t.name}
+                    </div>
+                    <div className="ellipsis">{artistNames(t.artists)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

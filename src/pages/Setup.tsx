@@ -2,6 +2,7 @@ import { ChevronLeft, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getClientId, getRedirectUri, setClientId } from '../config'
+import { StaticAurora } from '../state/ambient'
 import { useSession } from '../state/session'
 
 /** Schritt-für-Schritt-Anleitung, um Spukify mit Spotify zu verbinden. */
@@ -24,6 +25,8 @@ export function Setup() {
   }
 
   return (
+    <>
+    <StaticAurora />
     <div className="setup">
       <button type="button" className="round-btn" onClick={() => navigate(-1)} aria-label="Zurück">
         <ChevronLeft size={20} />
@@ -73,7 +76,7 @@ export function Setup() {
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <button
           type="button"
-          className="pill-btn"
+          className="pill-btn brand"
           disabled={!valid}
           onClick={() => {
             setClientId(clientId)
@@ -93,5 +96,6 @@ export function Setup() {
         Hinweis: Spotify verlangt für solche Apps, dass der Besitzer Spotify Premium hat. Die Client ID ist kein Geheimnis – sie wird nur auf diesem Gerät gespeichert.
       </p>
     </div>
+    </>
   )
 }

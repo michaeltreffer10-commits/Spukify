@@ -28,6 +28,7 @@ function useInstallPrompt() {
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+const isTouch = () => window.matchMedia('(pointer: coarse)').matches
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 export function SettingsPage() {
@@ -45,12 +46,12 @@ export function SettingsPage() {
       <div className="page-pad" style={{ maxWidth: 760 }}>
         <h1 className="page-title">Einstellungen</h1>
 
-        <div className="settings-card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16 }}>
-          <div className="avatar" style={{ width: 56, height: 56, fontSize: 22, border: 0 }}>
+        <div className="settings-card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 18 }}>
+          <div className="avatar" style={{ width: 60, height: 60, fontSize: 24 }}>
             {me.data?.images?.[0]?.url ? <img src={me.data.images[0].url} alt="" /> : (me.data?.display_name ?? '?').slice(0, 1).toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 20, fontWeight: 700 }} className="ellipsis">
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 30, lineHeight: 1.1 }} className="ellipsis">
               {me.data?.display_name ?? '…'}
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
@@ -60,7 +61,7 @@ export function SettingsPage() {
         </div>
 
         <div className="settings-group">
-          <h2>Wiedergabe</h2>
+          <h2 className="kicker">Wiedergabe</h2>
           <div className="settings-card">
             <button type="button" className="settings-row" onClick={() => openDevicePicker()}>
               {device ? <DeviceIcon type={device.type} size={22} /> : <MonitorSpeaker size={22} />}
@@ -83,8 +84,28 @@ export function SettingsPage() {
           </div>
         </div>
 
+        {!isTouch() && (
+          <div className="settings-group">
+            <h2 className="kicker">Tastenkürzel</h2>
+            <div className="settings-card">
+              <div className="settings-row">
+                <span className="kbd">Leertaste</span>
+                <div className="settings-row-text">Abspielen / Pause</div>
+              </div>
+              <div className="settings-row">
+                <span className="kbd">⇧ →</span>
+                <div className="settings-row-text">Nächster Song</div>
+              </div>
+              <div className="settings-row">
+                <span className="kbd">⇧ ←</span>
+                <div className="settings-row-text">Vorheriger Song</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="settings-group">
-          <h2>App</h2>
+          <h2 className="kicker">App</h2>
           <div className="settings-card">
             {install ? (
               <button type="button" className="settings-row" onClick={() => install.prompt()}>

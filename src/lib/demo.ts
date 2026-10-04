@@ -303,8 +303,11 @@ function goNext(auto = false): boolean {
   return true
 }
 
+const DJ_ID = '37i9dQZF1EYkqdzj48dyYq'
+
 function contextTrackIds(uri: string): string[] {
   const [, type, id] = uri.split(':')
+  if (id === DJ_ID) return shuffled(allTrackIds).slice(0, 30)
   if (type === 'playlist') return playlists.find((p) => p.id === id)?.trackIds.map((t) => t.id) ?? []
   if (type === 'album') return albums.find((a) => a.id === id)?.trackIds ?? []
   if (type === 'artist') return albums.filter((a) => a.artists[0].id === id).flatMap((a) => a.trackIds)
@@ -430,6 +433,10 @@ export function demoRequest(method: string, path: string, query: Q, body: unknow
   if (route === 'GET /me/library/contains') return String(query.uris || '').split(',').map((u) => library.has(u))
   if (route === 'PUT /me/library' || route === 'DELETE /me/library') {
     for (const uri of String(query.uris || '').split(',').filter(Boolean)) {
+      if (uri.startsWith('spotify:playlist:') && method === 'DELETE') {
+        const index = playlists.findIndex((p) => `spotify:playlist:${p.id}` === uri)
+        if (index >= 0) playlists.splice(index, 1)
+      }
       if (method === 'PUT') {
         library.add(uri)
         libraryAddedAt.set(uri, new Date().toISOString())
@@ -438,6 +445,13 @@ export function demoRequest(method: string, path: string, query: Q, body: unknow
     return undefined
   }
 
+  if ((m = /^PUT \/playlists\/([^/]+)$/.exec(route))) {
+    const p = playlists.find((x) => x.id === m![1])
+    if (!p) throw new ApiError(404, 'Playlist nicht gefunden')
+    if (typeof b.name === 'string') p.name = b.name
+    if (typeof b.description === 'string') p.description = b.description
+    return undefined
+  }
   if ((m = /^GET \/playlists\/([^/]+)$/.exec(route))) {
     const p = playlists.find((x) => x.id === m![1])
     if (!p) throw new ApiError(404, 'Playlist nicht gefunden')

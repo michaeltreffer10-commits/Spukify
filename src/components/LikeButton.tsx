@@ -47,7 +47,6 @@ export function LikeButton({ uri, size = 18, className = '', kind = 'track' }: P
         e.stopPropagation()
         toggle(uri, !saved)
       }}
-      style={saved ? { color: 'var(--accent)' } : undefined}
     >
       <Heart size={size} fill={saved ? 'currentColor' : 'none'} />
     </button>

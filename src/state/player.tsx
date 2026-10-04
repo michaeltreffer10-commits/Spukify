@@ -5,12 +5,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { AuthError } from '../lib/auth'
-import { ApiError, api } from '../lib/spotify'
+import { ApiError, api, isDemoMode } from '../lib/spotify'
 import type { PlaybackState, RepeatState } from '../lib/types'
 import { useSession } from './session'
 import { useUi } from './ui'
 
 const LAST_DEVICE_KEY = 'spukify.lastDevice'
+
+/** Spotifys KI-DJ ist intern eine Playlist mit dieser ID. */
+export const DJ_URI = 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq'
 
 type Offset = { uri: string } | { position: number }
 
@@ -38,6 +41,8 @@ interface Player {
   cycleRepeat: () => Promise<void>
   transferTo: (deviceId: string, play?: boolean) => Promise<void>
   addToQueue: (uri: string) => Promise<void>
+  /** Versucht, Spotifys KI-DJ zu starten. Klappt das nicht, wird er in der Spotify-App geöffnet. */
+  startDj: () => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -109,6 +114,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('focus', onVisible)
     }
   }, [active, refresh])
+
+  // Tastenkürzel am PC: Leertaste = Play/Pause, Umschalt + Pfeil = Weiter/Zurück
+  const keysRef = useRef<{ toggle: () => void; next: () => void; prev: () => void } | null>(null)
+  useEffect(() => {
+    if (!active) return
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.closest('input, textarea, select, [contenteditable="true"]') || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.code === 'Space' && !target.closest('button, a, [role="slider"]')) {
+        e.preventDefault()
+        keysRef.current?.toggle()
+      } else if (e.shiftKey && e.key === 'ArrowRight') {
+        e.preventDefault()
+        keysRef.current?.next()
+      } else if (e.shiftKey && e.key === 'ArrowLeft') {
+        e.preventDefault()
+        keysRef.current?.prev()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active])
 
   // Am Ende eines Songs sofort den nächsten abfragen.
   useEffect(() => {
@@ -240,10 +267,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           toast('Zur Warteschlange hinzugefügt')
         })
       },
+      startDj: async () => {
+        actionCounter.current++
+        try {
+          let deviceId: string | undefined
+          if (!stateRef.current) {
+            const device = await findDevice()
+            if (!device?.id) {
+              openDevicePicker('Für den DJ muss Spotify auf einem Gerät geöffnet sein. Öffne die Spotify-App und wähle sie hier aus.')
+              return
+            }
+            deviceId = device.id
+          }
+          await api.play({ context_uri: DJ_URI }, deviceId)
+          toast('DJ wird gestartet …')
+        } catch (e) {
+          if (e instanceof ApiError && e.reason === 'PREMIUM_REQUIRED') {
+            toast('Für den DJ brauchst du Spotify Premium.')
+          } else if (!isDemoMode()) {
+            toast('Spotify lässt den DJ nur in der eigenen App starten – ich öffne sie für dich.')
+            setTimeout(() => (window.location.href = DJ_URI), 900)
+          } else {
+            toast('Der DJ konnte nicht gestartet werden.')
+          }
+        } finally {
+          actionCounter.current++
+          refreshSoon()
+        }
+      },
       refresh,
     }),
-    [state, fetchedAt, ready, isPlayingContext, playContext, playUris, togglePlay, toggleContext, run, refresh, toast],
+    [state, fetchedAt, ready, isPlayingContext, playContext, playUris, togglePlay, toggleContext, run, refresh, toast, findDevice, openDevicePicker, refreshSoon],
   )
+
+  keysRef.current = { toggle: value.togglePlay, next: value.next, prev: value.previous }
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
 }

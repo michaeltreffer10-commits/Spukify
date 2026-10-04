@@ -5,8 +5,8 @@ import { LikeButton } from '../components/LikeButton'
 import { MediaCard, PlayButton, Shelf } from '../components/Media'
 import { TrackList } from '../components/TrackList'
 import { formatLongDuration, plural, year } from '../lib/format'
-import { useDominantColor } from '../lib/hooks'
 import { useAlbum, useArtist, useArtistAlbums } from '../lib/queries'
+import { usePageAmbient } from '../state/ambient'
 import { PageError, PageLoading } from './Playlist'
 
 export function AlbumPage() {
@@ -15,7 +15,7 @@ export function AlbumPage() {
   const a = album.data
   const mainArtist = useArtist(a?.artists[0]?.id)
   const more = useArtistAlbums(mainArtist.data)
-  const color = useDominantColor(pickImage(a?.images, 300), id)
+  usePageAmbient(pickImage(a?.images, 64))
 
   if (album.isLoading) return <PageLoading />
   if (album.isError || !a) return <PageError text="Dieses Album konnte nicht geladen werden." />
@@ -31,13 +31,16 @@ export function AlbumPage() {
 
   return (
     <div className="page">
-      <TopBar title={a.name} color={color.solid}>
+      <TopBar title={a.name}>
         <PlayButton contextUri={a.uri} className="small" size={20} />
       </TopBar>
-      <header className="hero" style={{ '--hero-color': color.solid } as React.CSSProperties}>
-        <Cover images={a.images} alt={a.name} size={300} />
+      <header className="hero">
+        <Cover images={a.images} alt={a.name} size={300} glow />
         <div className="hero-text">
-          <span className="hero-type">{kind}</span>
+          <span className="kicker">
+            {kind}
+            {a.release_date ? ` · ${year(a.release_date)}` : ''}
+          </span>
           <h1 className="hero-title">{a.name}</h1>
           <div className="hero-meta">
             {artistImg?.length ? <img className="avatar-mini" src={pickImage(artistImg, 64)} alt="" /> : null}
@@ -49,23 +52,22 @@ export function AlbumPage() {
                 </Link>
               </span>
             ))}
-            {a.release_date && <span className="dot">{year(a.release_date)}</span>}
             <span className="dot">{plural(tracks.length, 'Song', 'Songs')}</span>
-            {duration > 0 && <span className="dot muted">{formatLongDuration(duration)}</span>}
+            {duration > 0 && <span className="dot">{formatLongDuration(duration)}</span>}
           </div>
         </div>
       </header>
 
-      <div className="action-bar" style={{ '--hero-color-dim': color.dim } as React.CSSProperties}>
+      <div className="action-bar">
         <PlayButton contextUri={a.uri} />
-        <LikeButton uri={a.uri} size={28} kind="album" className="big" />
+        <LikeButton uri={a.uri} size={22} kind="album" className="big glass" />
       </div>
 
       <TrackList items={tracks} contextUri={a.uri} showCover={false} showAlbum={false} albumNumbers />
 
       {a.release_date && (
-        <p className="page-pad muted" style={{ marginTop: 24, fontSize: 13 }}>
-          {new Date(a.release_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}
+        <p className="page-pad kicker" style={{ marginTop: 28 }}>
+          Erschienen am {new Date(a.release_date).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       )}
 

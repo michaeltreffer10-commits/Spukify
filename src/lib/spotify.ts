@@ -197,6 +197,9 @@ export const api = {
   playlistItems: (id: string, offset = 0, limit = 100) =>
     request<Paging<PlaylistEntry>>('GET', `/playlists/${id}/items`, { query: { offset, limit } }),
 
+  updatePlaylist: (id: string, details: { name?: string; description?: string; public?: boolean }) =>
+    request('PUT', `/playlists/${id}`, { body: details }),
+
   createPlaylist: (name: string, description = '', isPublic = false) =>
     request<Playlist>('POST', '/me/playlists', { body: { name, description, public: isPublic } }),
 

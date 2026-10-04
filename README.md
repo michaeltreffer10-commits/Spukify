@@ -1,6 +1,6 @@
 # Spukify 👻
 
-Ein Spotify-Client im Spotify-Look als Web-App (PWA). Man kann ihn auf dem Handy oder PC zum Home-Bildschirm hinzufügen.
+Ein Spotify-Client mit eigenem, filmischem Design als Web-App (PWA). Man kann ihn auf dem Handy oder PC zum Home-Bildschirm hinzufügen.
 Du meldest dich mit deinem Spotify-Konto an und kannst dann deine Playlists, Lieblingssongs, Alben und Künstler nutzen, suchen und abspielen.
 
 ## So funktioniert die Wiedergabe
@@ -14,6 +14,14 @@ Voraussetzungen:
 - Spotify **Premium** (Spotify verlangt das zum Steuern der Wiedergabe)
 - Die Spotify-App ist auf dem Gerät installiert, auf dem die Musik laufen soll
 
+## Design
+
+- **Ambient Light:** Die Farben des aktuellen Covers leuchten weich im Hintergrund der ganzen App und wechseln fließend mit jedem Song und jeder Seite.
+- **Leuchtende Cover:** Cover werfen farbiges Licht auf ihre Umgebung, ähnlich wie der Ambient-Modus bei YouTube.
+- **Kino-Modus:** Ein Vollbild-Player mit großem Cover und Titel in Kino-Schrift. Am PC zeigt er zusätzlich, was als Nächstes läuft.
+- **Glas-Optik:** Seitenleiste, Player-Dock, Tab-Leiste und Menüs sind halbtransparent mit Unschärfe-Effekt.
+- **Typografie:** Instrument Serif für Titel, Plus Jakarta Sans für die Oberfläche, dazu eine feine Filmkorn-Textur.
+
 ## Funktionen
 
 - Login mit Spotify (sicher per PKCE, ohne eigenen Server)
@@ -24,7 +32,9 @@ Voraussetzungen:
 - Player-Leiste (PC), Mini-Player und Vollbild-Player (Handy)
 - Play/Pause, Vor/Zurück, Spulen, Zufall, Wiederholen und Lautstärke
 - Geräteauswahl (Spotify Connect) und Warteschlange
-- Songs liken, Playlists erstellen sowie Songs hinzufügen und entfernen
+- Songs liken, Playlists erstellen, umbenennen und löschen sowie Songs hinzufügen und entfernen
+- **KI-DJ:** Startet Spotifys DJ. Wenn Spotify das von außen nicht zulässt, öffnet sich der DJ direkt in der Spotify-App.
+- Tastenkürzel am PC: Leertaste = Play/Pause, Umschalt + Pfeiltasten = Weiter/Zurück
 - **Demo-Modus** mit Beispieldaten, um die App ohne Spotify-Konto auszuprobieren
 
 ## Einrichtung
@@ -70,6 +80,8 @@ Seit Februar 2026 gelten für Apps im „Development Mode“ strengere Regeln:
 - Die **Songs fremder Playlists** (z. B. Playlists anderer Nutzer) liefert Spotify nicht mehr aus. Abspielen funktioniert trotzdem.
 - „Beliebte Songs“ eines Künstlers ermittelt Spukify über die Suche, weil Spotify den Endpunkt dafür abgeschaltet hat.
 - Die Suche liefert höchstens 10 Treffer pro Seite.
+- Songtexte und Canvas-Videos stellt Spotify für eigene Apps nicht zur Verfügung. Podcasts sind in Spukify noch nicht eingebaut.
+- Den KI-DJ unterstützt Spotify offiziell nicht für eigene Apps. Spukify versucht ihn zu starten und öffnet sonst die Spotify-App.
 
 ## Technik
 

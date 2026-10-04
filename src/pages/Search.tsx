@@ -23,22 +23,22 @@ const FILTERS = [
 ] as const
 
 const BROWSE = [
-  ['Pop', '#dc148c'],
-  ['Hip-Hop', '#bc5900'],
-  ['Deutschrap', '#e8115b'],
-  ['Rock', '#e91429'],
-  ['Elektro', '#0d73ec'],
-  ['Chill', '#477d95'],
-  ['Workout', '#777777'],
-  ['Party', '#8d67ab'],
-  ['Indie', '#608108'],
-  ['Schlager', '#e1118c'],
-  ['Jazz', '#1e3264'],
-  ['Klassik', '#7d4b32'],
-  ['R&B', '#dc148c'],
-  ['Fokus', '#503750'],
-  ['Schlafen', '#1e3264'],
-  ['Sommer', '#27856a'],
+  ['Pop', '#ec4899', '#8b5cf6'],
+  ['Hip-Hop', '#f59e0b', '#ef4444'],
+  ['Deutschrap', '#ef4444', '#7c3aed'],
+  ['Rock', '#dc2626', '#f97316'],
+  ['Elektro', '#06b6d4', '#6366f1'],
+  ['Chill', '#14b8a6', '#3b82f6'],
+  ['Workout', '#f97316', '#e11d48'],
+  ['Party', '#d946ef', '#f59e0b'],
+  ['Indie', '#84cc16', '#0ea5e9'],
+  ['Schlager', '#f472b6', '#fb923c'],
+  ['Jazz', '#1d4ed8', '#a855f7'],
+  ['Klassik', '#b45309', '#64748b'],
+  ['R&B', '#be185d', '#6d28d9'],
+  ['Fokus', '#0f766e', '#4338ca'],
+  ['Schlafen', '#312e81', '#0e7490'],
+  ['Sommer', '#facc15', '#ec4899'],
 ]
 
 type RecentItem = Pick<MediaItem, 'id' | 'name' | 'uri' | 'type' | 'images'> & { sub?: string }
@@ -101,7 +101,7 @@ function TopResult({ item }: { item: MediaItem | Track }) {
           }
         }}
       >
-        <Cover images={images} round={item.type === 'artist'} size={160} />
+        <Cover images={images} round={item.type === 'artist'} size={160} glow />
         <div>
           <div className="top-result-name ellipsis">{item.name}</div>
           <div className="muted" style={{ marginTop: 4 }}>
@@ -180,13 +180,11 @@ export function Search() {
 
   return (
     <div className="page">
-      <div className="page-pad" style={{ paddingTop: mobile ? 'calc(16px + var(--safe-top))' : 16, position: 'sticky', top: 0, zIndex: 10, background: 'var(--surface)', paddingBottom: 12 }}>
-        {mobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <Avatar />
-            <h1 style={{ fontSize: 24, fontWeight: 800 }}>Suche</h1>
-          </div>
-        )}
+      <div className="page-pad sticky-head" style={{ paddingTop: mobile ? 'calc(16px + var(--safe-top))' : 28 }}>
+        <div className="page-head" style={{ marginBottom: 16 }}>
+          {mobile && <Avatar />}
+          <h1>Suche</h1>
+        </div>
         <div className="search-box">
           <SearchIcon className="lead" size={22} />
           <input
@@ -218,11 +216,9 @@ export function Search() {
       {!q && (
         <div className="page-pad">
           {recent.length > 0 && (
-            <section style={{ marginTop: 8, marginBottom: 24 }}>
+            <section style={{ marginTop: 16, marginBottom: 24 }}>
               <div className="section-head">
-                <h2 className="section-title" style={{ fontSize: 20 }}>
-                  Zuletzt gesucht
-                </h2>
+                <h2 className="section-title">Zuletzt gesucht</h2>
                 <button
                   type="button"
                   className="section-link"
@@ -239,15 +235,21 @@ export function Search() {
               ))}
             </section>
           )}
-          <h2 className="section-title" style={{ fontSize: 20, margin: '8px 0 16px' }}>
-            Alle durchsuchen
+          <h2 className="section-title" style={{ margin: '12px 0 16px' }}>
+            Stöbern
           </h2>
           <div className="browse-grid">
-            {BROWSE.map(([name, color]) => (
-              <button key={name} type="button" className="browse-tile" style={{ background: color }} onClick={() => setInput(name)}>
+            {BROWSE.map(([name, c1, c2]) => (
+              <button
+                key={name}
+                type="button"
+                className="browse-tile"
+                style={{ '--c1': c1, '--c2': c2 } as React.CSSProperties}
+                onClick={() => setInput(name)}
+              >
                 {name}
                 <span className="deco">
-                  <Music size={36} />
+                  <Music size={22} />
                 </span>
               </button>
             ))}

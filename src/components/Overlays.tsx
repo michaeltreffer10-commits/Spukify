@@ -2,6 +2,7 @@
 
 import { Check, Disc3, ExternalLink, Heart, Link2, ListEnd, ListPlus, Plus, RefreshCw, Smartphone, Trash2, UserRound } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { artistNames } from '../lib/format'
@@ -20,13 +21,15 @@ export function Sheet({ onClose, children, label }: { onClose: () => void; child
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  return (
+  // Per Portal ganz oben einhängen, damit das Menü nie hinter Player oder Navigation landet
+  return createPortal(
     <div className="backdrop" onClick={onClose}>
       <div className="sheet" role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" />
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -141,7 +144,7 @@ export function TrackMenu() {
           toggleSaved(track.uri, !saved)
         }}
       >
-        <Heart size={22} fill={saved ? 'var(--accent)' : 'none'} color={saved ? 'var(--accent)' : undefined} />
+        <Heart size={22} fill={saved ? 'var(--heart)' : 'none'} color={saved ? 'var(--heart)' : undefined} />
         {saved ? 'Aus Lieblingssongs entfernen' : 'Zu Lieblingssongs hinzufügen'}
       </button>
       <button type="button" className="menu-item" onClick={() => openAddToPlaylist(track)}>
