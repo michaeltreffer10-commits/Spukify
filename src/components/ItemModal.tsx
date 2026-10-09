@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { MAC_REGRET_VALUE, RARITIES, getCase, getSkin, wearOf } from '../game/data'
 import { itemValue } from '../game/roll'
@@ -6,15 +6,18 @@ import type { Item } from '../game/roll'
 import * as sound from '../game/sound'
 import { formatCoins, useStore } from '../game/store'
 import { WeaponArt } from './WeaponArt'
+import { Inspect3D } from '../three/lazy'
+import { SELL_BONUS, activeEvent } from '../game/progress'
 
 export function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
-  const { sell, toast } = useStore()
+  const { state, sell, toast } = useStore()
   const [confirm, setConfirm] = useState(false)
   const skin = getSkin(item.skinId)
   if (!skin) return null
   const rarity = RARITIES[skin.rarity]
   const wear = wearOf(item.float)
-  const value = itemValue(item)
+  const bonus = activeEvent(state, 'haendler')
+  const value = Math.round(itemValue(item) * (bonus ? SELL_BONUS : 1))
   const isMac = skin.rarity === 'mac'
 
   const doSell = () => {
@@ -48,7 +51,10 @@ export function ItemModal({ item, onClose }: { item: Item; onClose: () => void }
           ✕
         </button>
         <div className="modal-art">
-          <WeaponArt skin={skin} float={item.float} className="art" />
+          <Suspense fallback={<WeaponArt skin={skin} float={item.float} className="art" />}>
+            <Inspect3D skin={skin} float={item.float} className="art art-3d" />
+          </Suspense>
+          <span className="drag-hint">↻ Ziehen zum Drehen</span>
         </div>
         <span className="rarity-label">{rarity.name}</span>
         <h2>
@@ -84,7 +90,7 @@ export function ItemModal({ item, onClose }: { item: Item; onClose: () => void }
           </div>
         ) : (
           <button type="button" className="btn primary wide" onClick={isMac ? () => setConfirm(true) : doSell}>
-            Verkaufen für 🪙 {formatCoins(value)}
+            Verkaufen für 🪙 {formatCoins(value)} {bonus && '🤑 +25 %'}
           </button>
         )}
       </div>

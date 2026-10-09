@@ -26,13 +26,13 @@ function skinsOf(c: CaseDef, rarity: RarityId): Skin[] {
   return c.skins.filter((s) => s.rarity === rarity)
 }
 
-/** Würfelt die Seltenheit nach den echten Chancen */
-function rollRarity(): RarityId {
-  if (random() < MAC_CHANCE) return 'mac'
+/** Würfelt die Seltenheit nach den echten Chancen. `luck` = 2 verdoppelt alle seltenen Chancen. */
+function rollRarity(luck: number): RarityId {
+  if (random() < MAC_CHANCE * luck) return 'mac'
   const r = random()
   let acc = 0
   for (const id of ['gold', 'rot', 'pink', 'lila'] as const) {
-    acc += RARITIES[id].chance
+    acc += RARITIES[id].chance * luck
     if (r < acc) return id
   }
   return 'blau'
@@ -53,8 +53,8 @@ function uid(): string {
   return `${Date.now().toString(36)}-${counter.toString(36)}-${Math.floor(random() * 1e9).toString(36)}`
 }
 
-export function openCase(c: CaseDef): Item {
-  const rarity = rollRarity()
+export function openCase(c: CaseDef, luck = 1): Item {
+  const rarity = rollRarity(luck)
   const skin = rarity === 'mac' ? MAC_SKIN : pick(skinsOf(c, rarity))
   return { uid: uid(), skinId: skin.id, float: rollFloat(), caseId: c.id, at: Date.now() }
 }

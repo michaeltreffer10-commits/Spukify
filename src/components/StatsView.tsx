@@ -12,8 +12,7 @@ export function StatsView() {
 
   return (
     <div className="stats">
-      <h2 className="section-title">Statistik</h2>
-      <div className="stat-tiles">
+            <div className="stat-tiles">
         <div className="tile">
           <span className="label">Cases geöffnet</span>
           <span className="num">{formatCoins(s.opened)}</span>
@@ -31,8 +30,22 @@ export function StatsView() {
           <span className="num">🪙 {formatCoins(s.earned)}</span>
         </div>
         <div className="tile">
-          <span className="label">Aim-Rekord</span>
-          <span className="num">🪙 {formatCoins(s.aimBest)}</span>
+          <span className="label">Minispiele gespielt</span>
+          <span className="num">{formatCoins(s.games)}</span>
+        </div>
+        <div className="tile">
+          <span className="label">Längste Blau-Serie</span>
+          <span className="num">{formatCoins(s.bestBlueStreak)}</span>
+        </div>
+        <div className="tile">
+          <span className="label">Bomben entschärft / explodiert</span>
+          <span className="num">
+            {formatCoins(s.bombsDefused)} / {formatCoins(s.bombsExploded)}
+          </span>
+        </div>
+        <div className="tile">
+          <span className="label">Schnellste Reaktion</span>
+          <span className="num">{s.bestReaction ? `${s.bestReaction} ms` : '–'}</span>
         </div>
       </div>
 

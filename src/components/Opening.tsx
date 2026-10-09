@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { getSkin } from '../game/data'
 import type { CaseDef, Skin } from '../game/data'
 import { fillerSkin, itemValue, random, rarityRank } from '../game/roll'
@@ -7,6 +7,9 @@ import * as sound from '../game/sound'
 import { ItemCard, StripCard } from './ItemCard'
 import { ResultPanel } from './ResultPanel'
 import { MacReveal } from './MacReveal'
+import { CaseArt } from './WeaponArt'
+import { Case3D } from '../three/lazy'
+import { useStore } from '../game/store'
 
 const STRIP_LENGTH = 60
 const WIN_INDEX = 52
@@ -106,17 +109,19 @@ function FlipGrid({ items, onEnd }: { items: Item[]; onEnd: () => void }) {
 interface Props {
   caseDef: CaseDef
   items: Item[]
+  cost: number
   fast: boolean
   onClose: () => void
   onAgain: () => void
   onSelect: (item: Item) => void
 }
 
-type Phase = 'spin' | 'mac' | 'done'
+type Phase = 'case' | 'spin' | 'mac' | 'done'
 
-export function Opening({ caseDef, items, fast, onClose, onAgain, onSelect }: Props) {
+export function Opening({ caseDef, items, cost, fast, onClose, onAgain, onSelect }: Props) {
+  const { state, releaseNews } = useStore()
   const hasMac = items.some((i) => getSkin(i.skinId)?.rarity === 'mac')
-  const [phase, setPhase] = useState<Phase>(fast ? (hasMac ? 'mac' : 'done') : 'spin')
+  const [phase, setPhase] = useState<Phase>(fast ? (hasMac ? 'mac' : 'done') : 'case')
   const left = useRef(items.length)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
   const mode = items.length === 1 ? 'single' : items.length <= 10 ? 'multi' : 'grid'
@@ -138,6 +143,33 @@ export function Opening({ caseDef, items, fast, onClose, onAgain, onSelect }: Pr
     if (phase === 'mac') sound.reveal('mac')
   }, [phase, best])
 
+  // Erst wenn das Ergebnis da ist: Erfolge, Level-Ups und Meme-Sounds
+  const revealed = useRef(false)
+  const blueStreak = state.stats.blueStreak
+  const coins = state.coins
+  useEffect(() => {
+    if ((phase !== 'done' && phase !== 'mac') || revealed.current) return
+    revealed.current = true
+    releaseNews()
+    const rarity = getSkin(best.skinId)!.rarity
+    if (rarity === 'mac') {
+      sound.airhorn()
+      sound.speak('Nicht verkaufen! Niemals!')
+    } else if (rarity === 'gold') {
+      setTimeout(sound.airhorn, 400)
+      sound.speak('Was?! Ein Messer! Kein Witz!', 1.2)
+    } else if (rarity === 'rot') {
+      sound.speak('Verdeckt! Wie geil!')
+    } else if (rarity === 'blau' && Math.floor(blueStreak / 10) > Math.floor((blueStreak - items.length) / 10)) {
+      setTimeout(sound.sadTrombone, 500)
+    } else if (coins < 100) {
+      setTimeout(sound.sadTrombone, 500)
+    }
+  }, [phase, best, releaseNews, blueStreak, coins, items.length])
+
+  // Falls man vorher wegklickt, die Meldungen trotzdem zeigen
+  useEffect(() => () => releaseNews(), [releaseNews])
+
   const finish = () => setPhase(hasMac ? 'mac' : 'done')
   const stripEnded = () => {
     left.current--
@@ -153,6 +185,7 @@ export function Opening({ caseDef, items, fast, onClose, onAgain, onSelect }: Pr
       <ResultPanel
         caseDef={caseDef}
         items={items}
+        cost={cost}
         best={best}
         sorted={mode !== 'grid'}
         onClose={onClose}
@@ -172,7 +205,17 @@ export function Opening({ caseDef, items, fast, onClose, onAgain, onSelect }: Pr
           Überspringen ⏭
         </button>
       </div>
-      {mode === 'grid' ? (
+      {phase === 'case' ? (
+        <Suspense
+          fallback={
+            <div className="case3d">
+              <CaseArt colors={caseDef.colors} label={caseDef.name.replace('-Case', '').toUpperCase()} className="case-fallback" />
+            </div>
+          }
+        >
+          <Case3D caseDef={caseDef} count={items.length} onDone={() => setPhase('spin')} />
+        </Suspense>
+      ) : mode === 'grid' ? (
         <FlipGrid items={items} onEnd={finish} />
       ) : (
         <div className={`strips ${mode}`}>

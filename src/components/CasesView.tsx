@@ -51,23 +51,25 @@ function CaseContents({ c }: { c: CaseDef }) {
 interface OpenRun {
   caseId: string
   items: Item[]
+  cost: number
   key: number
 }
 
 export function CasesView() {
-  const { state, open, setFast, toast } = useStore()
+  const { state, open, setSetting, toast, casePrice } = useStore()
+  const discount = state.event?.id === 'rabatt' && state.event.until > Date.now()
   const [selected, setSelected] = useState<string | null>(null)
   const [run, setRun] = useState<OpenRun | null>(null)
   const [detail, setDetail] = useState<Item | null>(null)
 
-  const start = (c: CaseDef, count: number) => {
-    const items = open(c.id, count)
-    if (!items) {
-      toast('Nicht genug Münzen! Spiel das Aim-Training oder hol dir den Tagesbonus.', 'bad')
+  const start = (c: CaseDef, count: number, free = false) => {
+    const res = open(c.id, count, free)
+    if (!res) {
+      toast('Nicht genug Münzen! Spiel ein paar Minispiele oder hol dir den Tagesbonus.', 'bad')
       return
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
-    setRun({ caseId: c.id, items, key: Date.now() })
+    setRun({ caseId: c.id, items: res.items, cost: res.cost, key: Date.now() })
   }
 
   const runCase = run && getCase(run.caseId)
@@ -78,9 +80,10 @@ export function CasesView() {
           key={run.key}
           caseDef={runCase}
           items={run.items}
+          cost={run.cost}
           fast={state.fast}
           onClose={() => setRun(null)}
-          onAgain={() => start(runCase, run.items.length)}
+          onAgain={() => start(runCase, run.items.length, (state.freeCases[runCase.id] ?? 0) >= run.items.length)}
           onSelect={setDetail}
         />
         {detail && <ItemModal item={detail} onClose={() => setDetail(null)} />}
@@ -100,12 +103,19 @@ export function CasesView() {
           <div>
             <h2>{c.name}</h2>
             <p className="muted">{c.description}</p>
-            <p className="price">🪙 {formatCoins(c.price)} pro Case</p>
+            <p className="price">
+              {discount && <s className="muted">🪙 {formatCoins(c.price)}</s>} 🪙 {formatCoins(casePrice(c))} pro Case
+            </p>
           </div>
         </div>
+        {(state.freeCases[c.id] ?? 0) > 0 && (
+          <button type="button" className="btn free-btn" onClick={() => start(c, Math.min(100, state.freeCases[c.id]), true)}>
+            🎁 Gratis öffnen ({Math.min(100, state.freeCases[c.id])}×)
+          </button>
+        )}
         <div className="open-buttons">
           {COUNTS.map((n) => {
-            const cost = c.price * n
+            const cost = casePrice(c) * n
             return (
               <button
                 type="button"
@@ -121,7 +131,7 @@ export function CasesView() {
           })}
         </div>
         <label className="toggle">
-          <input type="checkbox" checked={state.fast} onChange={(e) => setFast(e.target.checked)} />
+          <input type="checkbox" checked={state.fast} onChange={(e) => setSetting('fast', e.target.checked)} />
           <span>Schnell öffnen (ohne Animation)</span>
         </label>
         <CaseContents c={c} />
@@ -142,8 +152,11 @@ export function CasesView() {
             onClick={() => setSelected(c.id)}
           >
             <CaseArt colors={c.colors} label={c.name.replace('-Case', '').toUpperCase()} className="case-art" />
+            {(state.freeCases[c.id] ?? 0) > 0 && <span className="free-badge">🎁 {state.freeCases[c.id]} gratis</span>}
             <span className="case-name">{c.name}</span>
-            <span className="case-price">🪙 {formatCoins(c.price)}</span>
+            <span className="case-price">
+              {discount && <s className="muted">{formatCoins(c.price)}</s>} 🪙 {formatCoins(casePrice(c))}
+            </span>
           </button>
         ))}
       </div>

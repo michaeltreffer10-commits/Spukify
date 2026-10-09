@@ -6,4 +6,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [react()],
+  // three.js (3D) ist groß, wird aber erst bei Bedarf geladen
+  build: { chunkSizeWarningLimit: 700 },
 })

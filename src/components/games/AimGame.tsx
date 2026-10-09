@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import * as sound from '../game/sound'
-import { formatCoins, useStore } from '../game/store'
+import * as sound from '../../game/sound'
+import { formatCoins, useStore } from '../../game/store'
+import { EndScreen, GameHead } from './common'
 
 const ROUND_MS = 30_000
 const TARGET_LIFE = 1300
@@ -18,8 +19,8 @@ function multiplier(combo: number): number {
   return Math.min(3, 1 + Math.floor(combo / 5) * 0.5)
 }
 
-export function AimGame() {
-  const { state, earn, setAimBest, toast } = useStore()
+export function AimGame({ onBack }: { onBack: () => void }) {
+  const { state, playedGame } = useStore()
   const [phase, setPhase] = useState<'idle' | 'play' | 'end'>('idle')
   const [targets, setTargets] = useState<Target[]>([])
   const [score, setScore] = useState(0)
@@ -27,8 +28,10 @@ export function AimGame() {
   const [shots, setShots] = useState(0)
   const [combo, setCombo] = useState(0)
   const [timeLeft, setTimeLeft] = useState(ROUND_MS)
+  const [won, setWon] = useState(0)
   const nextId = useRef(0)
   const scoreRef = useRef(0)
+  const hitsRef = useRef(0)
   const prevBest = useRef(0)
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function AimGame() {
       setTargets((t) => [...t, { id, x: 6 + Math.random() * 88, y: 8 + Math.random() * 84, born: performance.now() }])
     }
     spawn()
-    const spawner = setInterval(spawn, 620)
+    const spawner = setInterval(spawn, 600)
     const clock = setInterval(() => {
       const now = performance.now()
       const left = ROUND_MS - (now - start)
@@ -61,18 +64,15 @@ export function AimGame() {
   useEffect(() => {
     if (phase !== 'end') return
     setTargets([])
-    const won = scoreRef.current
-    if (won > 0) {
-      earn(won)
-      sound.coin()
-      toast(`+${formatCoins(won)} Münzen aus dem Aim-Training`, 'good')
-    }
-    setAimBest(won)
-  }, [phase, earn, setAimBest, toast])
+    const credited = playedGame('aim', scoreRef.current, { hits: hitsRef.current })
+    setWon(credited)
+    if (credited > 0) sound.coin()
+  }, [phase, playedGame])
 
   const begin = () => {
     scoreRef.current = 0
-    prevBest.current = state.stats.aimBest
+    hitsRef.current = 0
+    prevBest.current = state.stats.gameBest.aim
     setScore(0)
     setHits(0)
     setShots(0)
@@ -88,8 +88,9 @@ export function AimGame() {
     if (id) {
       const gain = Math.round(COINS_PER_HIT * multiplier(combo))
       scoreRef.current += gain
+      hitsRef.current++
       setScore(scoreRef.current)
-      setHits((h) => h + 1)
+      setHits(hitsRef.current)
       setCombo((c) => c + 1)
       setTargets((t) => t.filter((x) => x.id !== id))
       sound.hit()
@@ -103,21 +104,19 @@ export function AimGame() {
 
   return (
     <div className="aim">
-      <div className="aim-head">
-        <div>
-          <h2 className="section-title">Aim-Training</h2>
-          <p className="muted">
-            Triff in 30 Sekunden so viele Ziele wie möglich. Jeder Treffer gibt 🪙 {COINS_PER_HIT}, Treffer-Serien bis zu
-            ×3. Daneben schießen bricht die Serie.
-          </p>
-        </div>
-        <div className="aim-stats">
-          <span>⏱ {(timeLeft / 1000).toFixed(1)} s</span>
-          <span>🎯 {hits}</span>
-          <span>🔥 ×{multiplier(combo).toLocaleString('de-DE')}</span>
-          <span>🪙 {formatCoins(score)}</span>
-        </div>
-      </div>
+      <GameHead
+        title="🎯 Aim-Training"
+        desc={`Triff in 30 Sekunden so viele Ziele wie möglich. Jeder Treffer gibt 🪙 ${COINS_PER_HIT}, Treffer-Serien bis ×3. Daneben schießen bricht die Serie.`}
+        onBack={onBack}
+        stats={
+          <>
+            <span>⏱ {(timeLeft / 1000).toFixed(1)} s</span>
+            <span>🎯 {hits}</span>
+            <span>🔥 ×{multiplier(combo).toLocaleString('de-DE')}</span>
+            <span>🪙 {formatCoins(score)}</span>
+          </>
+        }
+      />
 
       <div className={`arena ${phase}`} onPointerDown={shoot}>
         {phase === 'play' &&
@@ -131,24 +130,21 @@ export function AimGame() {
           ))}
         {phase === 'idle' && (
           <div className="arena-overlay">
-            <p>Rekord: 🪙 {formatCoins(state.stats.aimBest)}</p>
+            <p>Rekord: 🪙 {formatCoins(state.stats.gameBest.aim)}</p>
             <button type="button" className="btn primary big" onClick={begin}>
               Start
             </button>
           </div>
         )}
         {phase === 'end' && (
-          <div className="arena-overlay">
-            <h3>Vorbei!</h3>
-            <p>
-              {hits} Treffer · {accuracy} % Genauigkeit
-            </p>
-            <p className="won">+🪙 {formatCoins(score)}</p>
-            {score > prevBest.current && <p className="record">🏆 Neuer Rekord!</p>}
-            <button type="button" className="btn primary big" onClick={begin}>
-              Nochmal
-            </button>
-          </div>
+          <EndScreen
+            title="Vorbei!"
+            lines={[`${hits} Treffer · ${accuracy} % Genauigkeit`]}
+            coins={won}
+            record={won > prevBest.current}
+            quip={hits >= 50 ? 'Bist du ein Bot? Ehrliche Frage.' : hits < 10 ? 'Die Ziele haben dich ausgelacht.' : undefined}
+            onAgain={begin}
+          />
         )}
       </div>
     </div>
