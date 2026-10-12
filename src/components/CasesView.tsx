@@ -4,7 +4,7 @@ import { CASES, RARITIES, RARITY_ORDER, getCase } from '../game/data'
 import type { CaseDef } from '../game/data'
 import type { Item, StickerItem } from '../game/roll'
 import * as sound from '../game/sound'
-import { CAPSULES, CAPSULE_ODDS, FINISHES, capsuleLabel, getCapsule } from '../game/stickers'
+import { CAPSULES, CAPSULE_ODDS, FINISHES, TITAN_CHANCE, capsuleLabel, getCapsule } from '../game/stickers'
 import type { CapsuleDef, StickerFinish } from '../game/stickers'
 import { formatCoins, useStore } from '../game/store'
 import type { BuyKind } from '../game/store'
@@ -55,12 +55,23 @@ function CaseContents({ c }: { c: CaseDef }) {
 }
 
 function CapsuleContents({ c }: { c: CapsuleDef }) {
+  const secret = c.stickers.some((s) => s.special)
   return (
     <div className="contents">
       <h3>Inhalt & Chancen</h3>
+      {secret && (
+        <div className="contents-group" style={{ '--rc': RARITIES.mac.color } as CSSProperties}>
+          <div className="contents-head">
+            <span className="dot" />
+            <span>Schmuggelware</span>
+            <span className="chance">{percent(TITAN_CHANCE)}</span>
+          </div>
+          <p className="secret">??? – Ein legendärer Sticker von 2014. Wer ihn zieht, schreit.</p>
+        </div>
+      )}
       {(['gold', 'holo', 'glitzer', 'papier'] as StickerFinish[]).map((f) => {
         const fin = FINISHES[f]
-        const list = c.stickers.filter((s) => s.finish === f)
+        const list = c.stickers.filter((s) => s.finish === f && !s.special)
         if (!list.length) return null
         return (
           <div key={f} className="contents-group" style={{ '--rc': RARITIES[fin.rarity].color } as CSSProperties}>

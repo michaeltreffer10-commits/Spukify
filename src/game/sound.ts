@@ -403,3 +403,26 @@ export function caseHit(charge: number) {
 export function whoosh() {
   noise({ dur: 0.9, vol: 0.12, type: 'bandpass', freq: 600, to: 2400, q: 0.6, attack: 0.15 })
 }
+
+// ---------- Audio-Clips ----------
+
+let clip: HTMLAudioElement | null = null
+
+/** Spielt eine Audiodatei ab (z. B. den Titan-Holo-Schrei). Läuft weiter, auch wenn man weiterklickt. */
+export function playClip(url: string, from = 0, volume = 0.9) {
+  if (!settings.sound || !settings.meme) return
+  try {
+    clip?.pause()
+    clip = new Audio(url)
+    clip.volume = volume
+    clip.currentTime = from
+    void clip.play().catch(() => {})
+  } catch {
+    // Kein Audio verfügbar – dann eben ohne Schrei.
+  }
+}
+
+export function stopClip() {
+  clip?.pause()
+  clip = null
+}

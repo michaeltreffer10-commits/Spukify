@@ -192,6 +192,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'capsule100', icon: '💊', name: 'Sticker-Sucht', desc: 'Öffne 100 Kapseln', reward: 3000, check: (s) => s.stats.capsulesOpened >= 100 },
   { id: 'holoSticker', icon: '🌈', name: 'Glänzend', desc: 'Ziehe einen Holo-Sticker', reward: 1000, check: (s) => s.stats.stickerDrops.holo >= 1 },
   { id: 'goldSticker', icon: '🥇', name: 'Goldjunge', desc: 'Ziehe einen Gold-Sticker', reward: 5000, check: (s) => s.stats.stickerDrops.gold >= 1 },
+  { id: 'titan', icon: '📢', name: 'Der Schrei', desc: 'Ziehe den Titan (Holo) aus Katowice 2014', reward: 20000, secret: true, check: (s) => s.stats.titans >= 1 },
   { id: 'press10', icon: '🖨️', name: 'Gelddrucker', desc: 'Bring die Geldpresse auf Stufe 10', reward: 5000, check: (s) => s.press.speed >= 10 },
   { id: 'drops50', icon: '📦', name: 'Kistenschlepper', desc: 'Bekomme 50 Cases als Drop', reward: 2500, check: (s) => s.stats.casesDropped >= 50 },
   { id: 'missions10', icon: '✅', name: 'Pflichtbewusst', desc: 'Erledige 10 Missionen', reward: 1500, check: (s) => s.stats.missionsDone >= 10 },

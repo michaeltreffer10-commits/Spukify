@@ -5,7 +5,7 @@ import type { CaseDef } from '../game/data'
 import { itemValue, rarityRank, stickerValue } from '../game/roll'
 import type { Item, StickerItem } from '../game/roll'
 import * as sound from '../game/sound'
-import { FINISHES, getSticker } from '../game/stickers'
+import { FINISHES, getSticker, stickerRarityName } from '../game/stickers'
 import type { CapsuleDef, StickerFinish } from '../game/stickers'
 import { formatCoins, useStore } from '../game/store'
 import { Confetti } from './Confetti'
@@ -168,9 +168,12 @@ export function StickerResults({ capsule, stickers, best, cost, onClose, onAgain
   const rarity = RARITIES[bestDef.rarity]
   const total = stickers.reduce((s, x) => s + stickerValue(x), 0)
   const againCost = capsuleCost(capsule.id, stickers.length)
+  // Der Titan wird nie im Sammelverkauf mitverkauft
+  const sellable = still.filter((x) => !getSticker(x.stickerId)?.special)
+  const keepsTitan = sellable.length < still.length
   const papers = still.filter((x) => getSticker(x.stickerId)?.finish === 'papier')
   const sum = (list: StickerItem[]) => list.reduce((s, x) => s + stickerValue(x), 0)
-  const party = bestDef.finish === 'holo' || bestDef.finish === 'gold'
+  const party = bestDef.finish === 'holo' || bestDef.finish === 'gold' || !!bestDef.special
   const counts = (['gold', 'holo', 'glitzer', 'papier'] as StickerFinish[])
     .map((f) => ({ f, n: stickers.filter((x) => getSticker(x.stickerId)?.finish === f).length }))
     .filter((x) => x.n > 0)
@@ -194,7 +197,7 @@ export function StickerResults({ capsule, stickers, best, cost, onClose, onAgain
         <div className="hero-text">
           <span className="rarity-label">
             {stickers.length > 1 ? 'Bester Sticker · ' : ''}
-            {FINISHES[bestDef.finish].rarityName} · {FINISHES[bestDef.finish].name}
+            {stickerRarityName(bestDef)} · {FINISHES[bestDef.finish].name}
           </span>
           <h2>
             Sticker <span>| {bestDef.name}</span>
@@ -225,12 +228,12 @@ export function StickerResults({ capsule, stickers, best, cost, onClose, onAgain
       )}
 
       <div className="result-actions">
-        {still.length > 0 && (
-          <button type="button" className="btn" onClick={() => doSell(still)}>
-            {stickers.length > 1 ? 'Alle verkaufen' : 'Verkaufen'} (+{formatCoins(sum(still))})
+        {sellable.length > 0 && (
+          <button type="button" className="btn" onClick={() => doSell(sellable)}>
+            {stickers.length > 1 ? 'Alle verkaufen' : 'Verkaufen'} (+{formatCoins(sum(sellable))})
           </button>
         )}
-        {stickers.length > 1 && papers.length > 0 && papers.length < still.length && (
+        {stickers.length > 1 && papers.length > 0 && papers.length < sellable.length && (
           <button type="button" className="btn ghost" onClick={() => doSell(papers)}>
             Nur Papier verkaufen (+{formatCoins(sum(papers))})
           </button>
@@ -243,6 +246,8 @@ export function StickerResults({ capsule, stickers, best, cost, onClose, onAgain
           Fertig
         </button>
       </div>
+
+      {keepsTitan && <p className="mac-note">Den Titan Holo verkaufst du hier nicht. Wenn überhaupt, dann einzeln im Inventar … 📢</p>}
 
       {stickers.length > 1 && (
         <div className="result-grid">

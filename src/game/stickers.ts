@@ -18,12 +18,13 @@ export type IconId =
   | 'toaster'
   | 'cactus'
   | 'crow'
+  | 'helmet'
 
 export interface StickerDef {
   id: string
   name: string
   capsuleId: string
-  rarity: Exclude<RarityId, 'gold' | 'mac'>
+  rarity: Exclude<RarityId, 'gold'>
   finish: StickerFinish
   shape: StickerShape
   icon?: IconId
@@ -31,7 +32,14 @@ export interface StickerDef {
   /** Hintergrund, Vordergrund, Akzent */
   colors: [string, string, string]
   value: number
+  /** Kleine Schrift unter dem Symbol */
+  caption?: string
+  /** Ultraselten, kommt nicht über die normalen Chancen (der Titan Holo) */
+  special?: boolean
 }
+
+/** Chance auf den Titan (Holo) pro Legenden-Kapsel */
+export const TITAN_CHANCE = 1 / 10_000
 
 export interface CapsuleDef {
   id: string
@@ -43,7 +51,7 @@ export interface CapsuleDef {
   stickers: StickerDef[]
 }
 
-export const FINISHES: Record<StickerFinish, { name: string; rarity: StickerDef['rarity']; rarityName: string }> = {
+export const FINISHES: Record<StickerFinish, { name: string; rarity: Exclude<StickerDef['rarity'], 'mac'>; rarityName: string }> = {
   papier: { name: 'Papier', rarity: 'blau', rarityName: 'Hochwertig' },
   glitzer: { name: 'Glitzer', rarity: 'lila', rarityName: 'Bemerkenswert' },
   holo: { name: 'Holo', rarity: 'pink', rarityName: 'Exotisch' },
@@ -115,6 +123,20 @@ export const CAPSULES: CapsuleDef[] = [
       ['grund-holo', 'Grund Gaming (Holo)', 'holo', 'circle', 'R', ['#0d47a1', '#ffffff', '#ffd23d'], 800],
       ['spukify-holo', 'Spukify (Holo)', 'holo', 'circle', 'icon:ghost', ['#4a148c', '#e1bee7', '#ffffff'], 400],
       ['grund-gold', 'Grund Gaming (Gold)', 'gold', 'circle', 'R', ['#0d47a1', '#ffffff', '#ffd23d'], 6000],
+    ]).concat([
+      {
+        id: 'legenden:titan-holo',
+        name: 'Titan (Holo) | Katowice 2014',
+        capsuleId: 'legenden',
+        rarity: 'mac',
+        finish: 'holo',
+        shape: 'shield',
+        icon: 'helmet',
+        caption: 'TITAN',
+        colors: ['#141414', '#ff8a00', '#ffffff'],
+        value: 80_000,
+        special: true,
+      },
     ]),
   },
   {
@@ -236,6 +258,14 @@ const ICONS: Record<IconId, Layer[]> = {
     { d: 'M26 36 H18 C14 36 12 33 12 29 V22 C12 18 18 18 18 22 V30 H26 Z M38 30 H46 V18 C46 14 52 14 52 18 V27 C52 32 49 34 45 34 H38 Z', fill: 'fg' },
     { d: 'M18 52 H46 V58 H18 Z', fill: 'accent' },
   ],
+  helmet: [
+    {
+      d: 'M14 50 C10 38 12 24 22 16 C32 8 46 10 52 20 C56 27 55 34 53 39 L42 39 L42 45 L52 45 L52 54 L38 54 L34 47 L27 47 L26 54 Z M33 26 L51 26 L51 32 L33 32 Z',
+      fill: 'fg',
+      evenOdd: true,
+    },
+    { d: 'M16 22 C20 6 44 2 56 12 C46 9 32 10 22 20 Z', fill: 'accent' },
+  ],
   crow: [
     {
       d: 'M8 40 C14 30 24 24 34 24 C38 16 46 12 54 14 L48 20 C52 22 54 26 52 30 C46 30 44 34 42 38 C38 46 28 50 18 50 L8 54 L14 46 Z',
@@ -275,9 +305,15 @@ export function stickerMarkup(s: StickerDef, p: string): string {
   body += `<path d="${SHAPE_PATH[s.shape]}" fill="${gold ? `url(#${p}gd)` : bg}"/>`
   if (s.finish === 'holo') body += `<path d="${SHAPE_PATH[s.shape]}" fill="url(#${p}h)" opacity="0.55"/>`
   if (s.icon) {
+    const iconScale = s.caption ? 0.62 : 0.78
+    const iconY = s.caption ? 27 : 32
     for (const l of ICONS[s.icon]) {
       if (l.fill === 'none') body += `<path d="${l.d}" fill="none" stroke="${col('bg')}" stroke-width="2.5" stroke-linecap="round"/>`
-      else body += `<path d="${l.d}" fill="${col(l.fill)}"${l.evenOdd ? ' fill-rule="evenodd"' : ''} transform="translate(32 32) scale(0.78) translate(-32 -32)"/>`
+      else
+        body += `<path d="${l.d}" fill="${col(l.fill)}"${l.evenOdd ? ' fill-rule="evenodd"' : ''} transform="translate(32 ${iconY}) scale(${iconScale}) translate(-32 -32)"/>`
+    }
+    if (s.caption) {
+      body += `<text x="32" y="52" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="11" letter-spacing="1" fill="${col('fg')}">${s.caption}</text>`
     }
   } else if (s.text) {
     const size = s.text.length <= 1 ? 40 : s.text.length <= 2 ? 30 : s.text.length <= 3 ? 22 : 17
@@ -294,3 +330,11 @@ export function stickerMarkup(s: StickerDef, p: string): string {
 export function capsuleLabel(c: CapsuleDef): string {
   return c.name.split(' ')[0].replace('-Kapsel', '').toUpperCase()
 }
+
+/** Seltenheits-Name eines Stickers (der Titan ist „Schmuggelware“) */
+export function stickerRarityName(s: StickerDef): string {
+  return s.special ? 'Schmuggelware' : FINISHES[s.finish].rarityName
+}
+
+/** Der Titan-Holo-Schrei */
+export const TITAN_CLIP = { url: `${import.meta.env.BASE_URL}sounds/titan-holo.mp3`, from: 4 }

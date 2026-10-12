@@ -3142,3 +3142,51 @@ select {
     animation: none;
   }
 }
+
+/* ---------- Titan-Holo-Show ---------- */
+
+.titan-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: #05050a;
+  overflow: hidden;
+  animation: shake 0.5s linear 3;
+}
+
+.titan-bg {
+  position: absolute;
+  inset: -50%;
+  background: conic-gradient(from 0deg, #ff4d4d, #ffe14d, #4dff9a, #4db8ff, #d44dff, #ff4d9a, #ff4d4d);
+  opacity: 0.35;
+  filter: blur(40px);
+  animation: spin 6s linear infinite;
+}
+
+.titan-content {
+  position: relative;
+  text-align: center;
+  padding: 24px;
+  max-width: 640px;
+  animation: pop 0.7s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.titan-sticker {
+  width: min(70vw, 300px);
+  height: min(70vw, 300px);
+  filter: drop-shadow(0 0 40px rgba(255, 255, 255, 0.5));
+  animation: float 2s ease-in-out infinite;
+}
+
+.titan-content h2 {
+  font-size: 48px;
+  text-shadow: 0 0 30px #d44dff;
+}
+
+@media (max-width: 640px) {
+  .titan-content h2 {
+    font-size: 32px;
+  }
+}

@@ -69,6 +69,8 @@ export interface Stats {
   casesDropped: number
   pressCollected: number
   hourlies: number
+  /** Wie oft der Titan (Holo) gezogen wurde 📢 */
+  titans: number
 }
 
 /** Die Geldpresse: druckt Münzen, auch wenn das Spiel zu ist */

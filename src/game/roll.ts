@@ -1,6 +1,6 @@
 import { MAC_CHANCE, MAC_SKIN, RARITIES, RARITY_ORDER, WEARS, getSkin, wearOf } from './data'
 import type { CaseDef, RarityId, Skin } from './data'
-import { CAPSULE_ODDS, getSticker, stickerBonus } from './stickers'
+import { CAPSULE_ODDS, TITAN_CHANCE, getSticker, stickerBonus } from './stickers'
 import type { CapsuleDef, StickerDef, StickerFinish } from './stickers'
 
 /** Ein gezogener Gegenstand im Inventar */
@@ -106,8 +106,10 @@ function rollFinish(luck: number): StickerFinish {
 }
 
 export function openCapsule(c: CapsuleDef, luck = 1): StickerItem {
+  const special = c.stickers.find((s) => s.special)
+  if (special && random() < TITAN_CHANCE * luck) return { uid: uid(), stickerId: special.id, at: Date.now() }
   const finish = rollFinish(luck)
-  const pool = c.stickers.filter((s) => s.finish === finish)
+  const pool = c.stickers.filter((s) => s.finish === finish && !s.special)
   const def = pick(pool.length ? pool : c.stickers)
   return { uid: uid(), stickerId: def.id, at: Date.now() }
 }
@@ -116,7 +118,7 @@ export function openCapsule(c: CapsuleDef, luck = 1): StickerItem {
 export function fillerSticker(c: CapsuleDef): StickerDef {
   const r = random()
   const finish: StickerFinish = r < 0.04 ? 'gold' : r < 0.12 ? 'holo' : r < 0.32 ? 'glitzer' : 'papier'
-  const pool = c.stickers.filter((s) => s.finish === finish)
+  const pool = c.stickers.filter((s) => s.finish === finish && !s.special)
   return pick(pool.length ? pool : c.stickers)
 }
 

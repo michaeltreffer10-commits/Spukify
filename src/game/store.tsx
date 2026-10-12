@@ -78,6 +78,7 @@ function freshStats(): Stats {
     casesDropped: 0,
     pressCollected: 0,
     hourlies: 0,
+    titans: 0,
   }
 }
 
@@ -481,7 +482,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const luck = activeEvent(s, 'glueck') ? 2 : 1
       const stickers = Array.from({ length: count }, () => openCapsule(cap, luck))
       const stickerDrops = { ...s.stats.stickerDrops }
-      for (const st of stickers) stickerDrops[getSticker(st.stickerId)!.finish]++
+      let titans = 0
+      for (const st of stickers) {
+        const def = getSticker(st.stickerId)!
+        stickerDrops[def.finish]++
+        if (def.special) titans++
+      }
       commit(
         {
           ...s,
@@ -490,7 +496,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           capsules: { ...s.capsules, [capsuleId]: Math.max(0, (s.capsules[capsuleId] ?? 0) - count) },
           xp: s.xp + Math.round(cap.price / 10) * count * xpMult(s),
           missions: { ...s.missions, list: bump(s.missions.list, 'capsules', count) },
-          stats: { ...s.stats, spent: s.stats.spent + cost, capsulesOpened: s.stats.capsulesOpened + count, stickerDrops },
+          stats: {
+            ...s.stats,
+            spent: s.stats.spent + cost,
+            capsulesOpened: s.stats.capsulesOpened + count,
+            stickerDrops,
+            titans: s.stats.titans + titans,
+          },
         },
         true,
       )

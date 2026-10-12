@@ -4,7 +4,7 @@ import { RARITIES, getSkin, wearOf } from '../game/data'
 import type { Skin } from '../game/data'
 import { itemValue, stickerValue } from '../game/roll'
 import type { Item, StickerItem } from '../game/roll'
-import { FINISHES, getSticker } from '../game/stickers'
+import { FINISHES, getSticker, stickerRarityName } from '../game/stickers'
 import type { StickerDef } from '../game/stickers'
 import { formatCoins } from '../game/store'
 import { StarArt, StickerArt, WeaponArt } from './WeaponArt'
@@ -67,12 +67,12 @@ export const ItemCard = memo(function ItemCard({ item, onClick, selected, delay 
 /** Sticker-Karte im Band (Gold-Sticker bleiben bis zum Schluss geheim) */
 export const StickerStripCard = memo(function StickerStripCard({ sticker, width }: { sticker: StickerDef; width: number }) {
   const color = RARITIES[sticker.rarity].color
-  const hidden = sticker.finish === 'gold'
+  const hidden = sticker.finish === 'gold' || sticker.special
   return (
     <div className="strip-card sticker-strip" style={{ '--rc': color, width } as CSSProperties}>
       {hidden ? <StarArt className="art" /> : <StickerArt sticker={sticker} className="art sticker-art" />}
       <div className="strip-name">
-        <span className="weapon">{hidden ? '★ Seltener Sticker' : FINISHES[sticker.finish].name}</span>
+        <span className="weapon">{hidden ? (sticker.special ? '???' : '★ Seltener Sticker') : FINISHES[sticker.finish].name}</span>
         {!hidden && <span className="skin">{sticker.name}</span>}
       </div>
     </div>
@@ -103,7 +103,7 @@ export const StickerCard = memo(function StickerCard({
         <span className="weapon">Sticker · {FINISHES[def.finish].name}</span>
         <span className="skin">{def.name}</span>
         <span className="meta">
-          <span className="wear">{FINISHES[def.finish].rarityName}</span>
+          <span className="wear">{stickerRarityName(def)}</span>
           <span className="value">🪙 {formatCoins(stickerValue(item))}</span>
         </span>
       </div>

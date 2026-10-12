@@ -144,7 +144,7 @@ function Settings({ onClose }: { onClose: () => void }) {
   const { state, setSetting } = useStore()
   const rows: { key: 'sound' | 'meme' | 'voice' | 'fast' | 'spamOpen'; label: string; desc: string }[] = [
     { key: 'sound', label: '🔊 Sounds', desc: 'Alle Geräusche an oder aus' },
-    { key: 'meme', label: '📯 Meme-Sounds', desc: 'Airhorn, trauriges Posaunen-Wah-wah, Clown-Hupe' },
+    { key: 'meme', label: '📯 Meme-Sounds', desc: 'Airhorn, trauriges Posaunen-Wah-wah, Clown-Hupe, der Titan-Holo-Schrei' },
     { key: 'voice', label: '🗣️ Sprachansagen', desc: '„Terroristen gewinnen“, „Bombe entschärft“ und mehr' },
     { key: 'spamOpen', label: '⌨️ Leertaste spammen', desc: 'Kisten per Leertaste (Handy: Tippen) aufbrechen. Aus = automatisch' },
     { key: 'fast', label: '⏩ Schnell öffnen', desc: 'Cases ohne Animation öffnen' },

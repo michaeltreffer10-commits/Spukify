@@ -11,6 +11,7 @@ import { useStore } from '../game/store'
 import { Case3D } from '../three/lazy'
 import { ItemCard, StickerCard, StickerStripCard, StripCard } from './ItemCard'
 import { MacReveal } from './MacReveal'
+import { TitanReveal } from './TitanReveal'
 import { ResultPanel, StickerResults } from './ResultPanel'
 import { CapsuleArt, CaseArt } from './WeaponArt'
 
@@ -36,10 +37,9 @@ interface StripProps {
   onEnd: () => void
 }
 
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 4)
-const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 4.5)
 
-/** Ein Band, das durchläuft, leicht über das Ziel schießt und zurückfedert */
+/** Ein Band, das durchläuft und wie in CS2 langsam ausrollt */
 function Strip({ cards, cardWidth, duration, ticking, blur, onEnd }: StripProps) {
   const box = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
@@ -54,10 +54,7 @@ function Strip({ cards, cardWidth, duration, ticking, blur, onEnd }: StripProps)
     if (!el || !tr) return
     const step = cardWidth + GAP
     const half = el.clientWidth / 2
-    const target = WIN_INDEX * step + cardWidth * (0.15 + random() * 0.7) - half
-    // Über das Ziel hinausschießen – manchmal bis auf die Nachbarkarte (fies!)
-    const over = step * (0.12 + random() * 0.3)
-    const main = duration * 0.86
+    const target = WIN_INDEX * step + cardWidth * (0.06 + random() * 0.88) - half
     const start = performance.now()
     let lastIndex = -1
     let lastX = 0
@@ -65,9 +62,7 @@ function Strip({ cards, cardWidth, duration, ticking, blur, onEnd }: StripProps)
     if (ticking) sound.whoosh()
     const loop = (now: number) => {
       const t = now - start
-      let x: number
-      if (t < main) x = (target + over) * easeOut(t / main)
-      else x = target + over - over * easeInOut(Math.min(1, (t - main) / (duration - main)))
+      const x = target * easeOut(Math.min(1, t / duration))
       tr.style.transform = `translate3d(${-x}px,0,0)`
       if (blur) {
         const speed = Math.abs(x - lastX)
@@ -234,7 +229,9 @@ export function Opening({ run, fast, spam, onClose, onAgain, onSelect, onSelectS
   const { state, releaseNews } = useStore()
   const isCase = run.kind === 'case'
   const count = isCase ? run.items.length : run.stickers.length
-  const hasMac = isCase && run.items.some((i) => getSkin(i.skinId)?.rarity === 'mac')
+  const hasMac = isCase
+    ? run.items.some((i) => getSkin(i.skinId)?.rarity === 'mac')
+    : run.stickers.some((x) => getSticker(x.stickerId)?.special)
   const [phase, setPhase] = useState<Phase>(fast ? (hasMac ? 'mac' : 'done') : 'gate')
   const left = useRef(count)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
@@ -253,14 +250,17 @@ export function Opening({ run, fast, spam, onClose, onAgain, onSelect, onSelectS
   const blueStreak = state.stats.blueStreak
   const coins = state.coins
   useEffect(() => {
-    if (phase === 'mac') sound.reveal('mac')
+    if (phase === 'mac' && isCase) sound.reveal('mac')
     if ((phase !== 'done' && phase !== 'mac') || revealed.current) return
     revealed.current = true
     if (phase === 'done') sound.reveal(bestRarity)
     releaseNews()
     if (bestRarity === 'mac') {
-      sound.airhorn()
-      sound.speak('Nicht verkaufen! Niemals!')
+      // Beim Titan läuft der Schrei schon in der Titan-Show
+      if (isCase) {
+        sound.airhorn()
+        sound.speak('Nicht verkaufen! Niemals!')
+      }
     } else if (bestRarity === 'gold') {
       setTimeout(sound.airhorn, 400)
       sound.speak('Was?! Ein Messer! Kein Witz!', 1.2)
@@ -312,7 +312,8 @@ export function Opening({ run, fast, spam, onClose, onAgain, onSelect, onSelectS
     )
   }, [run, mode, cardWidth])
 
-  if (phase === 'mac') return <MacReveal onContinue={() => setPhase('done')} />
+  if (phase === 'mac')
+    return isCase ? <MacReveal onContinue={() => setPhase('done')} /> : <TitanReveal onContinue={() => setPhase('done')} />
 
   if (phase === 'done') {
     if (run.kind === 'case') {
