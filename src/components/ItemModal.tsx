@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { MAC_REGRET_VALUE, RARITIES, getCase, getSkin, wearOf } from '../game/data'
 import { MODELS } from '../game/models'
 import { FINISHES, getSticker, stickerBonus } from '../game/stickers'
-import { itemValue } from '../game/roll'
+import { itemSeed, itemValue } from '../game/roll'
 import type { Item } from '../game/roll'
 import * as sound from '../game/sound'
 import { formatCoins, useStore } from '../game/store'
@@ -61,7 +61,7 @@ export function ItemModal({ item, onClose }: { item: Item; onClose: () => void }
         </button>
         <div className="modal-art">
           <Suspense fallback={<WeaponArt skin={skin} float={item.float} className="art" />}>
-            <Inspect3D skin={skin} float={item.float} stickers={item.stickers} className="art art-3d" />
+            <Inspect3D skin={skin} float={item.float} seed={itemSeed(item)} stickers={item.stickers} className="art art-3d" />
           </Suspense>
           <span className="drag-hint">↻ Ziehen zum Drehen</span>
         </div>
@@ -74,6 +74,8 @@ export function ItemModal({ item, onClose }: { item: Item; onClose: () => void }
           <dd>{wear.name}</dd>
           <dt>Float</dt>
           <dd>{item.float.toFixed(6)}</dd>
+          <dt>Muster-Seed</dt>
+          <dd>{itemSeed(item)}</dd>
           <dt>Aus</dt>
           <dd>{getCase(item.caseId)?.name ?? '–'}</dd>
           <dt>Gezogen am</dt>

@@ -3190,3 +3190,58 @@ select {
     font-size: 32px;
   }
 }
+
+/* ---------- Waffenschmiede (#schmiede) ---------- */
+
+.forge {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.forge-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.forge-head h1 {
+  font-size: 32px;
+}
+
+.forge-head h1 span {
+  color: var(--accent);
+}
+
+.forge-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.forge-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.forge-controls input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.forge-stage {
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: radial-gradient(ellipse at 50% 40%, #20232e, #08090d 70%);
+  overflow: hidden;
+}
+
+.forge-3d {
+  width: 100%;
+  height: min(70vh, 640px);
+}

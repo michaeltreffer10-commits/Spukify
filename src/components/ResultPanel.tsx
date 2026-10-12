@@ -2,7 +2,7 @@ import { Suspense, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { RARITIES, RARITY_ORDER, getSkin, wearOf } from '../game/data'
 import type { CaseDef } from '../game/data'
-import { itemValue, rarityRank, stickerValue } from '../game/roll'
+import { itemSeed, itemValue, rarityRank, stickerValue } from '../game/roll'
 import type { Item, StickerItem } from '../game/roll'
 import * as sound from '../game/sound'
 import { FINISHES, getSticker, stickerRarityName } from '../game/stickers'
@@ -71,7 +71,14 @@ export function ResultPanel({ caseDef, items, cost, best, sorted, onClose, onAga
         <div className="hero-glow" />
         {party && <div className="hero-rays" />}
         <Suspense fallback={<WeaponArt skin={bestSkin} float={best.float} className="hero-art" />}>
-          <Inspect3D key={best.uid} skin={bestSkin} float={best.float} stickers={best.stickers} className="hero-art hero-3d" />
+          <Inspect3D
+            key={best.uid}
+            skin={bestSkin}
+            float={best.float}
+            seed={itemSeed(best)}
+            stickers={best.stickers}
+            className="hero-art hero-3d"
+          />
         </Suspense>
         <div className="hero-text">
           <span className="rarity-label">{items.length > 1 ? `Bester Drop · ${bestRarity.name}` : bestRarity.name}</span>

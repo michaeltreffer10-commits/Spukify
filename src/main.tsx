@@ -1,8 +1,9 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { StoreProvider } from './game/store'
 import './styles.css'
+import { ForgeViewer } from './three/lazy'
 
 // Reste der alten Spukify-App (Service Worker) entfernen
 if ('serviceWorker' in navigator) {
@@ -12,7 +13,13 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <StoreProvider>
-      <App />
+      {location.hash === '#schmiede' ? (
+        <Suspense fallback={null}>
+          <ForgeViewer />
+        </Suspense>
+      ) : (
+        <App />
+      )}
     </StoreProvider>
   </StrictMode>,
 )

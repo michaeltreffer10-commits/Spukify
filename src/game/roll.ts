@@ -12,6 +12,16 @@ export interface Item {
   at: number
   /** Aufgeklebte Sticker (4 Plätze, `null` = frei) */
   stickers?: (string | null)[]
+  /** Pattern-Seed 0–1000 (bestimmt Lage und Drehung des Musters) */
+  seed?: number
+}
+
+/** Pattern-Seed eines Gegenstands; alte Gegenstände ohne Seed bekommen einen festen aus ihrer ID */
+export function itemSeed(item: Item): number {
+  if (item.seed !== undefined) return item.seed
+  let h = 0
+  for (const ch of item.uid) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return h % 1001
 }
 
 /** Ein Sticker im Inventar */
@@ -67,7 +77,7 @@ function uid(): string {
 export function openCase(c: CaseDef, luck = 1): Item {
   const rarity = rollRarity(luck)
   const skin = rarity === 'mac' ? MAC_SKIN : pick(skinsOf(c, rarity))
-  return { uid: uid(), skinId: skin.id, float: rollFloat(), caseId: c.id, at: Date.now() }
+  return { uid: uid(), skinId: skin.id, float: rollFloat(), caseId: c.id, at: Date.now(), seed: Math.floor(random() * 1001) }
 }
 
 /**
