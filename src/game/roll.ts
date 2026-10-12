@@ -1,5 +1,7 @@
 import { MAC_CHANCE, MAC_SKIN, RARITIES, RARITY_ORDER, WEARS, getSkin, wearOf } from './data'
 import type { CaseDef, RarityId, Skin } from './data'
+import { CAPSULE_ODDS, getSticker, stickerBonus } from './stickers'
+import type { CapsuleDef, StickerDef, StickerFinish } from './stickers'
 
 /** Ein gezogener Gegenstand im Inventar */
 export interface Item {
@@ -7,6 +9,15 @@ export interface Item {
   skinId: string
   float: number
   caseId: string
+  at: number
+  /** Aufgeklebte Sticker (4 Plätze, `null` = frei) */
+  stickers?: (string | null)[]
+}
+
+/** Ein Sticker im Inventar */
+export interface StickerItem {
+  uid: string
+  stickerId: string
   at: number
 }
 
@@ -74,7 +85,50 @@ export function itemValue(item: Item): number {
   const skin = getSkin(item.skinId)
   if (!skin) return 0
   if (skin.rarity === 'mac') return skin.value
-  return Math.max(1, Math.round(skin.value * wearOf(item.float).mult))
+  let value = Math.max(1, Math.round(skin.value * wearOf(item.float).mult))
+  for (const id of item.stickers ?? []) {
+    const st = id ? getSticker(id) : undefined
+    if (st) value += stickerBonus(st)
+  }
+  return value
+}
+
+export function stickerValue(item: StickerItem): number {
+  return getSticker(item.stickerId)?.value ?? 0
+}
+
+function rollFinish(luck: number): StickerFinish {
+  const r = random()
+  if (r < CAPSULE_ODDS.gold * luck) return 'gold'
+  if (r < (CAPSULE_ODDS.gold + CAPSULE_ODDS.holo) * luck) return 'holo'
+  if (r < (CAPSULE_ODDS.gold + CAPSULE_ODDS.holo + CAPSULE_ODDS.glitzer) * luck) return 'glitzer'
+  return 'papier'
+}
+
+export function openCapsule(c: CapsuleDef, luck = 1): StickerItem {
+  const finish = rollFinish(luck)
+  const pool = c.stickers.filter((s) => s.finish === finish)
+  const def = pick(pool.length ? pool : c.stickers)
+  return { uid: uid(), stickerId: def.id, at: Date.now() }
+}
+
+/** Füll-Sticker für das Band (seltene öfter, damit es spannend aussieht) */
+export function fillerSticker(c: CapsuleDef): StickerDef {
+  const r = random()
+  const finish: StickerFinish = r < 0.04 ? 'gold' : r < 0.12 ? 'holo' : r < 0.32 ? 'glitzer' : 'papier'
+  const pool = c.stickers.filter((s) => s.finish === finish)
+  return pick(pool.length ? pool : c.stickers)
+}
+
+/** Zufällig gewichtete Auswahl, z. B. für Case-Drops */
+export function weighted<T extends { dropWeight: number }>(list: T[]): T {
+  const total = list.reduce((a, x) => a + x.dropWeight, 0)
+  let r = random() * total
+  for (const x of list) {
+    r -= x.dropWeight
+    if (r <= 0) return x
+  }
+  return list[list.length - 1]
 }
 
 export function rarityRank(id: RarityId): number {

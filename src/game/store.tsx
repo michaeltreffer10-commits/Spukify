@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import { CASES, getCase, getSkin } from './data'
 import type { CaseDef, RarityId } from './data'
+import { MODELS } from './models'
+import { CAPSULES, getCapsule, getSticker } from './stickers'
 import {
   ACHIEVEMENTS,
   CASE_DISCOUNT,
@@ -18,19 +20,27 @@ import {
   missionText,
   missionsFor,
   xpForCase,
+  HOURLY_COINS,
+  HOURLY_COOLDOWN,
+  PRESS_MAX,
+  pressStored,
+  pressUpgradeCost,
 } from './progress'
 import type { Achievement } from './progress'
-import { itemValue, openCase, rarityRank } from './roll'
-import type { Item } from './roll'
+import { itemValue, openCapsule, openCase, rarityRank, random, stickerValue, weighted } from './roll'
+import type { Item, StickerItem } from './roll'
 import * as sound from './sound'
 import type { EventId, GameId, Mission, MissionType, SaveState, Stats } from './types'
 
 export type { SaveState, Stats } from './types'
 
-export const START_COINS = 2500
-export const DAILY_BONUS = 1000
+export const START_COINS = 5000
+export const DAILY_BONUS = 3000
 export const DAILY_COOLDOWN = 24 * 60 * 60 * 1000
-export const RAIN_COIN = 25
+export const RAIN_COIN = 75
+/** Chance auf ein Case bzw. eine Kapsel nach jeder Minispiel-Runde */
+export const GAME_CASE_DROP = 0.4
+export const GAME_CAPSULE_DROP = 0.15
 
 const KEY = 'co3-save-v1'
 
@@ -62,6 +72,12 @@ function freshStats(): Stats {
     dailies: 0,
     missionsDone: 0,
     wasBroke: false,
+    capsulesOpened: 0,
+    stickerDrops: { papier: 0, glitzer: 0, holo: 0, gold: 0 },
+    stickersApplied: 0,
+    casesDropped: 0,
+    pressCollected: 0,
+    hourlies: 0,
   }
 }
 
@@ -75,8 +91,15 @@ function freshState(): SaveState {
     meme: true,
     voice: true,
     fast: false,
+    spamOpen: true,
     xp: 0,
-    freeCases: {},
+    // Startpaket
+    cases: { spuk: 3 },
+    keys: { spuk: 3 },
+    capsules: { meme: 2 },
+    stickers: [],
+    press: { speed: 1, ink: 0, vault: 0, last: Date.now() },
+    lastHourly: 0,
     album: {},
     albumClaimed: [],
     achievements: {},
@@ -98,14 +121,30 @@ function load(): SaveState {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return base
-    const saved = JSON.parse(raw) as Partial<SaveState> & { stats?: Partial<Stats> & { aimBest?: number } }
+    const saved = JSON.parse(raw) as Partial<SaveState> & {
+      stats?: Partial<Stats> & { aimBest?: number }
+      freeCases?: Record<string, number>
+    }
     const items = (saved.items ?? []).filter((i) => getSkin(i.skinId))
     const stats: Stats = {
       ...base.stats,
       ...saved.stats,
       drops: { ...base.stats.drops, ...saved.stats?.drops },
       gameBest: { ...base.stats.gameBest, ...saved.stats?.gameBest },
+      stickerDrops: { ...base.stats.stickerDrops, ...saved.stats?.stickerDrops },
     }
+    // Gratis-Cases aus Version 2 werden zu Case + Schlüssel
+    let cases = saved.cases
+    let keys = saved.keys
+    if (!cases) {
+      cases = { ...base.cases }
+      keys = { ...base.keys }
+      for (const [id, n] of Object.entries(saved.freeCases ?? {})) {
+        cases[id] = (cases[id] ?? 0) + n
+        keys[id] = (keys[id] ?? 0) + n
+      }
+    }
+    delete saved.freeCases
     // Spielstände aus Version 1 übernehmen
     if (saved.stats?.aimBest && !saved.stats.gameBest) stats.gameBest.aim = saved.stats.aimBest
     let album = saved.album
@@ -119,6 +158,10 @@ function load(): SaveState {
       items,
       album,
       stats,
+      cases,
+      keys: keys ?? {},
+      stickers: (saved.stickers ?? []).filter((x) => getSticker(x.stickerId)),
+      press: { ...base.press, ...saved.press },
       missions: saved.missions ?? base.missions,
     })
   } catch {
@@ -143,7 +186,8 @@ function finalize(prev: SaveState, next: SaveState): { state: SaveState; news: N
     s = {
       ...s,
       coins: s.coins + r.coins,
-      freeCases: { ...s.freeCases, [r.caseId]: (s.freeCases[r.caseId] ?? 0) + 1 },
+      cases: addCount(s.cases, r.caseId, 1),
+      keys: addCount(s.keys, r.caseId, 1),
       stats: { ...s.stats, earned: s.stats.earned + r.coins },
     }
     news.push({ kind: 'level', level: l, ...r })
@@ -172,6 +216,10 @@ function finalize(prev: SaveState, next: SaveState): { state: SaveState; news: N
   return { state: s, news }
 }
 
+function addCount(rec: Record<string, number>, id: string, n: number): Record<string, number> {
+  return { ...rec, [id]: Math.max(0, (rec[id] ?? 0) + n) }
+}
+
 function bump(list: Mission[], type: MissionType, amount: number): Mission[] {
   if (amount <= 0) return list
   return list.map((m) => (m.type === type && !m.claimed ? { ...m, progress: Math.min(m.target, m.progress + amount) } : m))
@@ -193,20 +241,32 @@ export interface GameResult {
   early?: number
 }
 
-type Setting = 'sound' | 'meme' | 'voice' | 'fast'
+type Setting = 'sound' | 'meme' | 'voice' | 'fast' | 'spamOpen'
+export type BuyKind = 'case' | 'key' | 'capsule'
 
 interface Store {
   state: SaveState
   level: { level: number; into: number; need: number }
-  /** Preis eines Cases (mit Rabatt-Ereignis) */
-  casePrice: (c: CaseDef) => number
+  /** Preise für Case und Schlüssel (mit Rabatt-Ereignis) */
+  priceOf: (c: CaseDef) => { casePrice: number; keyPrice: number }
+  /** Was das Öffnen kostet: fehlende Cases und Schlüssel werden automatisch gekauft */
+  openCost: (caseId: string, count: number) => number
+  capsuleCost: (capsuleId: string, count: number) => number
+  buy: (kind: BuyKind, id: string, count: number) => boolean
   /** Öffnet Cases. Meldungen (Erfolge usw.) kommen erst mit releaseNews(), damit nichts verraten wird. */
-  open: (caseId: string, count: number, free?: boolean) => { items: Item[]; cost: number } | null
+  open: (caseId: string, count: number) => { items: Item[]; cost: number } | null
+  openCapsules: (capsuleId: string, count: number) => { stickers: StickerItem[]; cost: number } | null
   releaseNews: () => void
+  /** Verkauft Waffen und Sticker */
   sell: (uids: string[]) => number
+  applySticker: (itemUid: string, stickerUid: string) => boolean
+  scrapeSticker: (itemUid: string, slot: number) => void
   /** Ergebnis eines Minispiels eintragen. Gibt die gutgeschriebenen Münzen zurück (mit Level-Bonus). */
   playedGame: (game: GameId, coins: number, result?: GameResult) => number
   claimDaily: () => boolean
+  claimHourly: () => boolean
+  pressCollect: () => number
+  pressUpgrade: (kind: keyof typeof PRESS_MAX) => boolean
   claimMission: (id: string) => void
   claimMissionBonus: () => void
   claimAlbum: (caseId: string, kind: 'base' | 'full') => void
@@ -259,7 +319,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (n.kind === 'level') {
             sound.levelUp()
             toast(
-              `⬆️ LEVEL ${n.level}! +${formatCoins(n.coins)} Münzen und ein gratis ${getCase(n.caseId)?.name ?? 'Case'}`,
+              `⬆️ LEVEL ${n.level}! +${formatCoins(n.coins)} Münzen und ein ${getCase(n.caseId)?.name ?? 'Case'} mit Schlüssel`,
               'level',
               6000,
             )
@@ -296,18 +356,63 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const xpMult = (s: SaveState) => (activeEvent(s, 'xp') ? 2 : 1)
 
-  const casePrice = useCallback(
-    (c: CaseDef) => (activeEvent(ref.current, 'rabatt') ? Math.round(c.price * CASE_DISCOUNT) : c.price),
+  const priceOf = useCallback(
+    (c: CaseDef) => {
+      const f = activeEvent(ref.current, 'rabatt') ? CASE_DISCOUNT : 1
+      return { casePrice: Math.round(c.casePrice * f), keyPrice: Math.round(c.keyPrice * f) }
+    },
+    // Neu berechnen, wenn ein Ereignis beginnt oder endet
     [state.event],
   )
 
+  const openCost = useCallback(
+    (caseId: string, count: number) => {
+      const c = getCase(caseId)
+      if (!c) return Infinity
+      const s = ref.current
+      const p = priceOf(c)
+      const missingCases = Math.max(0, count - (s.cases[caseId] ?? 0))
+      const missingKeys = Math.max(0, count - (s.keys[caseId] ?? 0))
+      return missingCases * p.casePrice + missingKeys * p.keyPrice
+    },
+    [priceOf, state.cases, state.keys],
+  )
+
+  const capsuleCost = useCallback(
+    (capsuleId: string, count: number) => {
+      const c = getCapsule(capsuleId)
+      if (!c) return Infinity
+      const f = activeEvent(ref.current, 'rabatt') ? CASE_DISCOUNT : 1
+      return Math.max(0, count - (ref.current.capsules[capsuleId] ?? 0)) * Math.round(c.price * f)
+    },
+    [state.capsules, state.event],
+  )
+
+  const buy = useCallback(
+    (kind: BuyKind, id: string, count: number) => {
+      const s = ref.current
+      const f = activeEvent(s, 'rabatt') ? CASE_DISCOUNT : 1
+      let unit = 0
+      if (kind === 'capsule') unit = getCapsule(id)?.price ?? 0
+      else {
+        const c = getCase(id)
+        unit = c ? (kind === 'case' ? c.casePrice : c.keyPrice) : 0
+      }
+      const cost = Math.round(unit * f) * count
+      if (!unit || s.coins < cost) return false
+      const field = kind === 'case' ? 'cases' : kind === 'key' ? 'keys' : 'capsules'
+      commit({ ...s, coins: s.coins - cost, [field]: addCount(s[field], id, count), stats: { ...s.stats, spent: s.stats.spent + cost } })
+      return true
+    },
+    [commit],
+  )
+
   const open = useCallback(
-    (caseId: string, count: number, free = false) => {
+    (caseId: string, count: number) => {
       const c = getCase(caseId)
       if (!c) return null
       const s = ref.current
-      const useFree = free && (s.freeCases[caseId] ?? 0) >= count
-      const cost = useFree ? 0 : casePrice(c) * count
+      const cost = openCost(caseId, count)
       if (s.coins < cost) return null
       const luck = activeEvent(s, 'glueck') ? 2 : 1
       const items = Array.from({ length: count }, () => openCase(c, luck))
@@ -353,7 +458,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           items: [...items, ...s.items],
           album,
           xp: s.xp + xpForCase(c) * count * xpMult(s),
-          freeCases: useFree ? { ...s.freeCases, [caseId]: s.freeCases[caseId] - count } : s.freeCases,
+          // Erst fehlende kaufen, dann je 1 Case + 1 Schlüssel verbrauchen
+          cases: { ...s.cases, [caseId]: Math.max(0, (s.cases[caseId] ?? 0) - count) },
+          keys: { ...s.keys, [caseId]: Math.max(0, (s.keys[caseId] ?? 0) - count) },
           missions: { ...s.missions, list: missions },
           stats,
         },
@@ -361,7 +468,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       )
       return { items, cost }
     },
-    [commit, casePrice],
+    [commit, openCost],
+  )
+
+  const openCapsules = useCallback(
+    (capsuleId: string, count: number) => {
+      const cap = getCapsule(capsuleId)
+      if (!cap) return null
+      const s = ref.current
+      const cost = capsuleCost(capsuleId, count)
+      if (s.coins < cost) return null
+      const luck = activeEvent(s, 'glueck') ? 2 : 1
+      const stickers = Array.from({ length: count }, () => openCapsule(cap, luck))
+      const stickerDrops = { ...s.stats.stickerDrops }
+      for (const st of stickers) stickerDrops[getSticker(st.stickerId)!.finish]++
+      commit(
+        {
+          ...s,
+          coins: s.coins - cost,
+          stickers: [...stickers, ...s.stickers],
+          capsules: { ...s.capsules, [capsuleId]: Math.max(0, (s.capsules[capsuleId] ?? 0) - count) },
+          xp: s.xp + Math.round(cap.price / 10) * count * xpMult(s),
+          missions: { ...s.missions, list: bump(s.missions.list, 'capsules', count) },
+          stats: { ...s.stats, spent: s.stats.spent + cost, capsulesOpened: s.stats.capsulesOpened + count, stickerDrops },
+        },
+        true,
+      )
+      return { stickers, cost }
+    },
+    [commit, capsuleCost],
   )
 
   const sell = useCallback(
@@ -369,19 +504,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const s = ref.current
       const set = new Set(uids)
       const sold = s.items.filter((i) => set.has(i.uid))
-      if (sold.length === 0) return 0
+      const soldStickers = s.stickers.filter((x) => set.has(x.uid))
+      const count = sold.length + soldStickers.length
+      if (count === 0) return 0
       const mult = activeEvent(s, 'haendler') ? SELL_BONUS : 1
-      const total = Math.round(sold.reduce((sum, i) => sum + itemValue(i), 0) * mult)
+      const raw = sold.reduce((sum, i) => sum + itemValue(i), 0) + soldStickers.reduce((sum, x) => sum + stickerValue(x), 0)
+      const total = Math.round(raw * mult)
       const macs = sold.filter((i) => getSkin(i.skinId)?.rarity === 'mac').length
       commit({
         ...s,
         coins: s.coins + total,
-        items: s.items.filter((i) => !set.has(i.uid)),
-        missions: { ...s.missions, list: bump(s.missions.list, 'sell', sold.length) },
+        items: sold.length ? s.items.filter((i) => !set.has(i.uid)) : s.items,
+        stickers: soldStickers.length ? s.stickers.filter((x) => !set.has(x.uid)) : s.stickers,
+        missions: { ...s.missions, list: bump(s.missions.list, 'sell', count) },
         stats: {
           ...s.stats,
           sold: s.stats.sold + total,
-          soldCount: s.stats.soldCount + sold.length,
+          soldCount: s.stats.soldCount + count,
           macSold: s.stats.macSold + macs,
         },
       })
@@ -389,6 +528,59 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [commit],
   )
+
+  const applySticker = useCallback(
+    (itemUid: string, stickerUid: string) => {
+      const s = ref.current
+      const item = s.items.find((i) => i.uid === itemUid)
+      const sticker = s.stickers.find((x) => x.uid === stickerUid)
+      if (!item || !sticker) return false
+      const skin = getSkin(item.skinId)
+      const spots = skin ? (MODELS[skin.model].stickers?.length ?? 0) : 0
+      if (!skin || skin.builtInStickers || spots === 0) return false
+      const slots = [...(item.stickers ?? [])]
+      while (slots.length < spots) slots.push(null)
+      const free = slots.findIndex((x) => !x)
+      if (free < 0) return false
+      slots[free] = sticker.stickerId
+      sound.stickerSlap()
+      commit({
+        ...s,
+        items: s.items.map((i) => (i.uid === itemUid ? { ...i, stickers: slots } : i)),
+        stickers: s.stickers.filter((x) => x.uid !== stickerUid),
+        missions: { ...s.missions, list: bump(s.missions.list, 'stickers', 1) },
+        stats: { ...s.stats, stickersApplied: s.stats.stickersApplied + 1 },
+      })
+      return true
+    },
+    [commit],
+  )
+
+  const scrapeSticker = useCallback(
+    (itemUid: string, slot: number) => {
+      const s = ref.current
+      sound.scrape()
+      commit({
+        ...s,
+        items: s.items.map((i) => {
+          if (i.uid !== itemUid || !i.stickers) return i
+          const slots = [...i.stickers]
+          slots[slot] = null
+          return { ...i, stickers: slots }
+        }),
+      })
+    },
+    [commit],
+  )
+
+  /** Zufälliges Case als Geschenk (billige Cases kommen öfter) */
+  const dropCase = (s: SaveState): { state: SaveState; caseId: string } => {
+    const c = weighted(CASES)
+    return {
+      state: { ...s, cases: addCount(s.cases, c.id, 1), stats: { ...s.stats, casesDropped: s.stats.casesDropped + 1 } },
+      caseId: c.id,
+    }
+  }
 
   const playedGame = useCallback(
     (game: GameId, coins: number, r: GameResult = {}) => {
@@ -406,13 +598,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         )
       }
       const st = s.stats
+      // Drops: mit etwas Glück gibt es ein Case oder eine Kapsel dazu
+      let base: SaveState = s
+      const gifts: string[] = []
+      if (random() < GAME_CASE_DROP) {
+        const d = dropCase(base)
+        base = d.state
+        gifts.push(getCase(d.caseId)!.name)
+      }
+      if (random() < GAME_CAPSULE_DROP) {
+        const cap = weighted(CAPSULES)
+        base = { ...base, capsules: addCount(base.capsules, cap.id, 1) }
+        gifts.push(cap.name)
+      }
+      if (gifts.length) {
+        setTimeout(() => {
+          sound.drop()
+          toast(`📦 Drop: ${gifts.join(' und ')}!`, 'good', 4500)
+        }, 700)
+      }
       commit({
-        ...s,
+        ...base,
         coins: s.coins + credited,
-        xp: s.xp + (10 + Math.round(credited / 4)) * xpMult(s),
+        xp: s.xp + (10 + Math.round(credited / 12)) * xpMult(s),
         missions: { ...s.missions, list: missions },
         stats: {
-          ...st,
+          ...base.stats,
           earned: st.earned + credited,
           games: st.games + 1,
           gameCoins: st.gameCoins + credited,
@@ -428,7 +639,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
       return credited
     },
-    [commit],
+    [commit, toast],
   )
 
   const claimDaily = useCallback(() => {
@@ -442,6 +653,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })
     return true
   }, [commit])
+
+  const claimHourly = useCallback(() => {
+    const s = ref.current
+    if (Date.now() - s.lastHourly < HOURLY_COOLDOWN) return false
+    const coins = Math.round(HOURLY_COINS * (1 + gameBonus(levelInfo(s.xp).level)))
+    const d = dropCase(s)
+    commit({
+      ...d.state,
+      coins: s.coins + coins,
+      lastHourly: Date.now(),
+      stats: { ...d.state.stats, earned: s.stats.earned + coins, hourlies: s.stats.hourlies + 1 },
+    })
+    sound.coin()
+    toast(`⏰ Stündlicher Bonus: +${formatCoins(coins)} Münzen und ein ${getCase(d.caseId)!.name}!`, 'good', 5000)
+    return true
+  }, [commit, toast])
+
+  const pressCollect = useCallback(() => {
+    const s = ref.current
+    const amount = pressStored(s.press)
+    if (amount <= 0) return 0
+    commit({
+      ...s,
+      coins: s.coins + amount,
+      press: { ...s.press, last: Date.now() },
+      stats: { ...s.stats, earned: s.stats.earned + amount, pressCollected: s.stats.pressCollected + amount },
+    })
+    sound.cashRegister()
+    return amount
+  }, [commit])
+
+  const pressUpgrade = useCallback(
+    (kind: keyof typeof PRESS_MAX) => {
+      // Vorher einsammeln, damit nichts zum neuen Preis verloren geht
+      pressCollect()
+      const s = ref.current
+      if (s.press[kind] >= PRESS_MAX[kind]) return false
+      const cost = pressUpgradeCost(kind, s.press)
+      if (s.coins < cost) return false
+      sound.levelUp()
+      commit({ ...s, coins: s.coins - cost, press: { ...s.press, [kind]: s.press[kind] + 1 } })
+      return true
+    },
+    [commit, pressCollect],
+  )
 
   const claimMission = useCallback(
     (id: string) => {
@@ -468,11 +724,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     commit({
       ...s,
       coins: s.coins + MISSION_BONUS.coins,
-      freeCases: { ...s.freeCases, [MISSION_BONUS.caseId]: (s.freeCases[MISSION_BONUS.caseId] ?? 0) + 1 },
+      cases: addCount(s.cases, MISSION_BONUS.caseId, 1),
+      keys: addCount(s.keys, MISSION_BONUS.caseId, 1),
       missions: { ...s.missions, bonusClaimed: true },
       stats: { ...s.stats, earned: s.stats.earned + MISSION_BONUS.coins },
     })
-    toast(`🎁 Tagesbonus für alle Missionen: +${formatCoins(MISSION_BONUS.coins)} und ein gratis Neon-Case!`, 'level', 5000)
+    toast(`🎁 Bonus für alle Missionen: +${formatCoins(MISSION_BONUS.coins)} und ein Neon-Case mit Schlüssel!`, 'level', 5000)
   }, [commit, toast])
 
   const claimAlbum = useCallback(
@@ -537,12 +794,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       state,
       level,
-      casePrice,
+      priceOf,
+      openCost,
+      capsuleCost,
+      buy,
       open,
+      openCapsules,
       releaseNews,
       sell,
+      applySticker,
+      scrapeSticker,
       playedGame,
       claimDaily,
+      claimHourly,
+      pressCollect,
+      pressUpgrade,
       claimMission,
       claimMissionBonus,
       claimAlbum,
@@ -558,12 +824,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [
       state,
       level,
-      casePrice,
+      priceOf,
+      openCost,
+      capsuleCost,
+      buy,
       open,
+      openCapsules,
       releaseNews,
       sell,
+      applySticker,
+      scrapeSticker,
       playedGame,
       claimDaily,
+      claimHourly,
+      pressCollect,
+      pressUpgrade,
       claimMission,
       claimMissionBonus,
       claimAlbum,

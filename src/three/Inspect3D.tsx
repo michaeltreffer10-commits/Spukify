@@ -4,16 +4,18 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RARITIES } from '../game/data'
 import type { Skin } from '../game/data'
-import { buildWeapon, disposeObject, skinTexture } from './weapon'
+import { buildWeapon, disposeObject, skinTexture, stickerTextures } from './weapon'
 
 interface Props {
   skin: Skin
   float: number
+  stickers?: (string | null)[]
   className?: string
 }
 
 /** Drehbare 3D-Ansicht eines Skins (wie „Inspect“ in CS) */
-export default function Inspect3D({ skin, float, className }: Props) {
+export default function Inspect3D({ skin, float, stickers, className }: Props) {
+  const stickerKey = (skin.builtInStickers ?? stickers ?? []).join('|')
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,12 +59,14 @@ export default function Inspect3D({ skin, float, className }: Props) {
     controls.addEventListener('start', () => (controls.autoRotate = false))
 
     let weapon: THREE.Group | null = null
-    void skinTexture(skin, float).then((tex) => {
+    const ids = stickerKey ? stickerKey.split('|').filter(Boolean) : []
+    void Promise.all([skinTexture(skin, float), stickerTextures(ids)]).then(([tex, stex]) => {
       if (disposed) {
         tex.dispose()
+        stex.forEach((t) => t.dispose())
         return
       }
-      weapon = buildWeapon(skin, float, tex)
+      weapon = buildWeapon(skin, float, tex, stickerKey.split('|').map((x) => x || null), stex)
       weapon.rotation.y = -0.5
       scene.add(weapon)
     })
@@ -101,7 +105,7 @@ export default function Inspect3D({ skin, float, className }: Props) {
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
-  }, [skin, float])
+  }, [skin, float, stickerKey])
 
   return <div ref={host} className={`inspect3d ${className ?? ''}`} title="Ziehen zum Drehen" />
 }

@@ -6,7 +6,7 @@ import { EndScreen, GameHead } from './common'
 
 const ROUND_MS = 30_000
 const TARGET_LIFE = 1300
-const COINS_PER_HIT = 10
+const COINS_PER_HIT = 30
 
 interface Target {
   id: number

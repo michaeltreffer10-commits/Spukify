@@ -51,7 +51,7 @@ function Missions() {
             {formatCoins(level.into)} / {formatCoins(level.need)} XP bis Level {level.level + 1}
           </p>
           <p className="muted">
-            Nächste Belohnung: 🪙 {formatCoins(next.coins)} und ein gratis {getCase(next.caseId)?.name} · Minispiel-Bonus: +
+            Nächste Belohnung: 🪙 {formatCoins(next.coins)} und ein {getCase(next.caseId)?.name} mit Schlüssel · Minispiel-Bonus: +
             {Math.round(gameBonus(level.level) * 100)} %
           </p>
           <p className="muted small">
@@ -96,7 +96,7 @@ function Missions() {
       </div>
       <div className={`mission-bonus${state.missions.bonusClaimed ? ' claimed' : ''}`}>
         <span>
-          🎁 Alle 3 Missionen abgeholt: 🪙 {formatCoins(MISSION_BONUS.coins)} und ein gratis Neon-Case
+          🎁 Alle 3 Missionen abgeholt: 🪙 {formatCoins(MISSION_BONUS.coins)} und ein Neon-Case mit Schlüssel
         </span>
         {state.missions.bonusClaimed ? (
           <span className="plus">✓ Abgeholt</span>

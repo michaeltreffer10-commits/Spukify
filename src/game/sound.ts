@@ -363,3 +363,43 @@ export function speak(text: string, pitch = 1) {
   speechSynthesis.cancel()
   speechSynthesis.speak(u)
 }
+
+// ---------- Sticker, Drops, Geldpresse ----------
+
+/** Sticker abziehen und aufklatschen */
+export function stickerSlap() {
+  noise({ dur: 0.18, vol: 0.12, type: 'highpass', freq: 2500, to: 6000, attack: 0.08 })
+  noise({ at: 0.2, dur: 0.06, vol: 0.35, type: 'lowpass', freq: 1800 })
+  tone({ type: 'sine', freq: 180, to: 90, at: 0.2, dur: 0.1, vol: 0.25 })
+}
+
+/** Sticker abkratzen */
+export function scrape() {
+  for (let i = 0; i < 6; i++) noise({ at: i * 0.05, dur: 0.05, vol: 0.12, type: 'bandpass', freq: 3000 + i * 300, q: 4 })
+}
+
+/** Ein Case oder eine Kapsel ist gedroppt */
+export function drop() {
+  tone({ type: 'triangle', freq: NOTE(79), dur: 0.12, vol: 0.1 })
+  tone({ type: 'triangle', freq: NOTE(84), at: 0.1, dur: 0.12, vol: 0.1 })
+  tone({ type: 'triangle', freq: NOTE(91), at: 0.2, dur: 0.4, vol: 0.1, wet: 0.5 })
+}
+
+/** Kasse: Geldpresse einsammeln */
+export function cashRegister() {
+  tone({ type: 'square', freq: 2200, dur: 0.05, vol: 0.05 })
+  noise({ at: 0.04, dur: 0.15, vol: 0.2, type: 'bandpass', freq: 900, q: 2 })
+  tone({ type: 'sine', freq: NOTE(96), at: 0.12, dur: 0.6, vol: 0.12, wet: 0.4 })
+  tone({ type: 'sine', freq: NOTE(100), at: 0.12, dur: 0.6, vol: 0.08, wet: 0.4 })
+}
+
+/** Ein Schlag auf die Kiste beim Leertaste-Spammen (höher, je voller) */
+export function caseHit(charge: number) {
+  noise({ dur: 0.07, vol: 0.18 + charge * 0.15, type: 'bandpass', freq: 600 + charge * 1800, q: 2 })
+  tone({ type: 'triangle', freq: 120 + charge * 500, dur: 0.08, vol: 0.12 })
+}
+
+/** Leises Rauschen, wenn das Band schnell läuft */
+export function whoosh() {
+  noise({ dur: 0.9, vol: 0.12, type: 'bandpass', freq: 600, to: 2400, q: 0.6, attack: 0.15 })
+}

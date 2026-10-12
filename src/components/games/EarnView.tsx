@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { gameBonus } from '../../game/progress'
-import { formatCoins, useStore } from '../../game/store'
+import { useEffect, useState } from 'react'
+import { HOURLY_COINS, HOURLY_COOLDOWN, gameBonus } from '../../game/progress'
+import { GAME_CAPSULE_DROP, GAME_CASE_DROP, formatCoins, useStore } from '../../game/store'
 import type { GameId } from '../../game/types'
 import { AimGame } from './AimGame'
+import { MoneyPress } from './MoneyPress'
 import { BombGame } from './BombGame'
 import { HeadshotGame } from './HeadshotGame'
 import { ReactionGame } from './ReactionGame'
@@ -15,8 +16,13 @@ const GAMES: { id: GameId; icon: string; name: string; desc: string; time: strin
 ]
 
 export function EarnView() {
-  const { state, level } = useStore()
+  const { state, level, claimHourly } = useStore()
   const [game, setGame] = useState<GameId | null>(null)
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
   const back = () => setGame(null)
 
   if (game === 'aim') return <AimGame onBack={back} />
@@ -25,11 +31,34 @@ export function EarnView() {
   if (game === 'headshot') return <HeadshotGame onBack={back} />
 
   const bonus = Math.round(gameBonus(level.level) * 100)
+  const hourlyWait = state.lastHourly + HOURLY_COOLDOWN - now
 
   return (
     <div className="earn">
       <h2 className="section-title">Münzen verdienen</h2>
-      <p className="muted">Jedes Spiel bringt Münzen und XP. Je höher dein Level, desto mehr gibt es.</p>
+      <p className="muted">
+        Jedes Spiel bringt Münzen und XP – und mit {Math.round(GAME_CASE_DROP * 100)} % Chance ein Case, mit{' '}
+        {Math.round(GAME_CAPSULE_DROP * 100)} % eine Sticker-Kapsel.
+      </p>
+      <MoneyPress />
+      <div className={`hourly${hourlyWait <= 0 ? ' ready' : ''}`}>
+        <span className="hourly-icon">⏰</span>
+        <div>
+          <strong>Stündlicher Bonus</strong>
+          <p className="muted small">
+            🪙 {Math.round(HOURLY_COINS * (1 + gameBonus(level.level))).toLocaleString('de-DE')} und ein zufälliges Case – jede Stunde
+          </p>
+        </div>
+        {hourlyWait <= 0 ? (
+          <button type="button" className="btn primary" onClick={claimHourly}>
+            Abholen
+          </button>
+        ) : (
+          <span className="hourly-wait">
+            {Math.floor(hourlyWait / 60000)}:{String(Math.floor((hourlyWait % 60000) / 1000)).padStart(2, '0')}
+          </span>
+        )}
+      </div>
       <div className="bonus-banner">
         <span className="bonus-num">+{bonus} %</span>
         <span>

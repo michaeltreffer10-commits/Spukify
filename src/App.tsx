@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { CasesView } from './components/CasesView'
+import type { Focus } from './components/CasesView'
 import { Inventory } from './components/Inventory'
 import { ProgressView } from './components/ProgressView'
 import { EarnView } from './components/games/EarnView'
-import { EVENTS, activeEvent } from './game/progress'
+import { EVENTS, HOURLY_COOLDOWN, activeEvent } from './game/progress'
 import * as sound from './game/sound'
 import { DAILY_BONUS, DAILY_COOLDOWN, formatCoins, useStore } from './game/store'
 import type { EventId } from './game/types'
@@ -40,8 +41,9 @@ function DailyButton() {
   const now = useNow(30_000)
   const wait = state.lastDaily + DAILY_COOLDOWN - now
   if (wait > 0) {
-    const h = Math.floor(wait / 3_600_000)
-    const m = Math.ceil((wait % 3_600_000) / 60_000)
+    const total = Math.ceil(wait / 60_000)
+    const h = Math.floor(total / 60)
+    const m = total % 60
     return (
       <span className="daily wait" title="Der nächste Tagesbonus kommt bald">
         🎁 {h > 0 ? `${h}h ${m}m` : `${m}m`}
@@ -140,10 +142,11 @@ function CoinRain() {
 
 function Settings({ onClose }: { onClose: () => void }) {
   const { state, setSetting } = useStore()
-  const rows: { key: 'sound' | 'meme' | 'voice' | 'fast'; label: string; desc: string }[] = [
+  const rows: { key: 'sound' | 'meme' | 'voice' | 'fast' | 'spamOpen'; label: string; desc: string }[] = [
     { key: 'sound', label: '🔊 Sounds', desc: 'Alle Geräusche an oder aus' },
     { key: 'meme', label: '📯 Meme-Sounds', desc: 'Airhorn, trauriges Posaunen-Wah-wah, Clown-Hupe' },
     { key: 'voice', label: '🗣️ Sprachansagen', desc: '„Terroristen gewinnen“, „Bombe entschärft“ und mehr' },
+    { key: 'spamOpen', label: '⌨️ Leertaste spammen', desc: 'Kisten per Leertaste (Handy: Tippen) aufbrechen. Aus = automatisch' },
     { key: 'fast', label: '⏩ Schnell öffnen', desc: 'Cases ohne Animation öffnen' },
   ]
   return (
@@ -180,6 +183,7 @@ function Settings({ onClose }: { onClose: () => void }) {
 export function App() {
   const { state, level, toasts, dismissToast, startEvent, tickClock } = useStore()
   const [tab, setTab] = useState<Tab>('cases')
+  const [focus, setFocus] = useState<{ f: Focus; key: number }>({ f: null, key: 0 })
   const [settings, setSettings] = useState(false)
   const started = useRef(Date.now())
 
@@ -212,11 +216,14 @@ export function App() {
   }, [startEvent])
 
   const go = (t: Tab) => {
+    if (t === 'cases' && tab === 'cases') setFocus({ f: null, key: Date.now() })
     setTab(t)
     window.scrollTo({ top: 0 })
   }
 
   const claimable = state.missions.list.filter((m) => m.progress >= m.target && !m.claimed).length
+  const now = useNow(15_000)
+  const hourlyReady = now - state.lastHourly >= HOURLY_COOLDOWN
   const luck = activeEvent(state, 'glueck')
 
   return (
@@ -231,6 +238,7 @@ export function App() {
               {t.icon} {t.label}
               {t.id === 'inventar' && state.items.length > 0 && <span className="badge">{formatCoins(state.items.length)}</span>}
               {t.id === 'fortschritt' && claimable > 0 && <span className="badge">{claimable}</span>}
+              {t.id === 'verdienen' && hourlyReady && <span className="badge">⏰</span>}
             </button>
           ))}
         </nav>
@@ -254,8 +262,16 @@ export function App() {
       <EventBanner />
 
       <main className="content">
-        {tab === 'cases' && <CasesView />}
-        {tab === 'inventar' && <Inventory onGoCases={() => go('cases')} />}
+        {tab === 'cases' && <CasesView key={focus.key} focus={focus.f} />}
+        {tab === 'inventar' && (
+          <Inventory
+            onGoCases={() => go('cases')}
+            onOpen={(f) => {
+              setFocus({ f, key: Date.now() })
+              go('cases')
+            }}
+          />
+        )}
         {tab === 'verdienen' && <EarnView />}
         {tab === 'fortschritt' && <ProgressView />}
       </main>
@@ -265,7 +281,7 @@ export function App() {
           <button type="button" key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => go(t.id)}>
             <span className="tab-icon">
               {t.icon}
-              {t.id === 'fortschritt' && claimable > 0 && <span className="dot-badge" />}
+              {((t.id === 'fortschritt' && claimable > 0) || (t.id === 'verdienen' && hourlyReady)) && <span className="dot-badge" />}
             </span>
             <span>{t.short}</span>
           </button>

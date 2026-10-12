@@ -1,9 +1,21 @@
 import type { RarityId } from './data'
-import type { Item } from './roll'
+import type { Item, StickerItem } from './roll'
+import type { StickerFinish } from './stickers'
 
 export type GameId = 'aim' | 'bomb' | 'reaction' | 'headshot'
 
-export type MissionType = 'open' | 'rare' | 'sell' | 'games' | 'gameCoins' | 'bomb' | 'headshots' | 'aimHits' | 'reaction'
+export type MissionType =
+  | 'open'
+  | 'rare'
+  | 'sell'
+  | 'games'
+  | 'gameCoins'
+  | 'bomb'
+  | 'headshots'
+  | 'aimHits'
+  | 'reaction'
+  | 'capsules'
+  | 'stickers'
 
 export interface Mission {
   id: string
@@ -51,6 +63,24 @@ export interface Stats {
   dailies: number
   missionsDone: number
   wasBroke: boolean
+  capsulesOpened: number
+  stickerDrops: Record<StickerFinish, number>
+  stickersApplied: number
+  casesDropped: number
+  pressCollected: number
+  hourlies: number
+}
+
+/** Die Geldpresse: druckt Münzen, auch wenn das Spiel zu ist */
+export interface PressState {
+  /** Druckgeschwindigkeit (Stufe 1–50) */
+  speed: number
+  /** Goldtinte: ×1,25 pro Stufe */
+  ink: number
+  /** Tresor: +1 Stunde Speicher pro Stufe */
+  vault: number
+  /** Seit wann gedruckt wird */
+  last: number
 }
 
 export interface SaveState {
@@ -61,8 +91,16 @@ export interface SaveState {
   meme: boolean
   voice: boolean
   fast: boolean
+  /** Leertaste spammen, um Kisten aufzubrechen */
+  spamOpen: boolean
   xp: number
-  freeCases: Record<string, number>
+  /** Kisten im Inventar */
+  cases: Record<string, number>
+  keys: Record<string, number>
+  capsules: Record<string, number>
+  stickers: StickerItem[]
+  press: PressState
+  lastHourly: number
   /** Welche Skins man schon einmal gezogen hat (und wie oft) */
   album: Record<string, number>
   albumClaimed: string[]

@@ -153,7 +153,7 @@ export function BombGame({ onBack }: { onBack: () => void }) {
     // Entschärft!
     over.current = true
     const secs = Math.max(0, (endAt.current - performance.now()) / 1000)
-    const coins = Math.round(80 + secs * 12 + Math.min(100, streak * 20))
+    const coins = Math.round(240 + secs * 36 + Math.min(300, streak * 60))
     setPhase('defused')
     setStreak((s) => s + 1)
     sound.defused()

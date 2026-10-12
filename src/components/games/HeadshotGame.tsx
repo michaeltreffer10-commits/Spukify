@@ -6,9 +6,9 @@ import { formatCoins, useStore } from '../../game/store'
 import { EndScreen, GameHead } from './common'
 
 const ROUND_MS = 30_000
-const HEAD = 30
-const BODY = 10
-const HOSTAGE_PENALTY = 40
+const HEAD = 90
+const BODY = 30
+const HOSTAGE_PENALTY = 100
 
 /** Verstecke: Kisten unten und Fenster oben (Angaben in %) */
 const SPOTS = [

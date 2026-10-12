@@ -1,7 +1,7 @@
 // Level, Missionen, Erfolge, Sammelalbum und Zufalls-Ereignisse.
 import { CASES, MAC_SKIN } from './data'
 import type { CaseDef } from './data'
-import type { EventId, Mission, MissionType, SaveState } from './types'
+import type { EventId, Mission, MissionType, PressState, SaveState } from './types'
 
 // ---------- Level ----------
 
@@ -20,9 +20,10 @@ export function levelInfo(xp: number): { level: number; into: number; need: numb
   return { level, into: rest, need: needXp(level) }
 }
 
+/** Belohnung fürs Level-Up: Münzen und ein Case samt Schlüssel */
 export function levelReward(level: number): { coins: number; caseId: string } {
   return {
-    coins: 250 * level,
+    coins: 750 * level,
     caseId: level % 10 === 0 ? 'inferno' : level % 5 === 0 ? 'neon' : 'spuk',
   }
 }
@@ -46,28 +47,30 @@ interface MissionTemplate {
 }
 
 export const MISSION_TEMPLATES: MissionTemplate[] = [
-  { type: 'open', targets: [15, 30, 60], reward: (n) => n * 20, text: (m) => `Öffne ${m.target} Cases` },
+  { type: 'open', targets: [15, 30, 60], reward: (n) => n * 60, text: (m) => `Öffne ${m.target} Cases` },
   {
     type: 'rare',
     targets: [2, 4, 6],
-    reward: (n) => n * 150,
+    reward: (n) => n * 450,
     text: (m) => `Ziehe ${m.target} Skins der Stufe „Limitiert“ oder besser`,
   },
-  { type: 'sell', targets: [10, 25, 50], reward: (n) => n * 10, text: (m) => `Verkaufe ${m.target} Skins` },
-  { type: 'games', targets: [3, 5, 8], reward: (n) => n * 80, text: (m) => `Spiele ${m.target} Runden Minispiele` },
+  { type: 'sell', targets: [10, 25, 50], reward: (n) => n * 30, text: (m) => `Verkaufe ${m.target} Skins oder Sticker` },
+  { type: 'games', targets: [3, 5, 8], reward: (n) => n * 240, text: (m) => `Spiele ${m.target} Runden Minispiele` },
   {
     type: 'gameCoins',
-    targets: [500, 1000, 2000],
+    targets: [1500, 3000, 6000],
     reward: (n) => Math.round(n * 0.3),
     text: (m) => `Verdiene ${m.target.toLocaleString('de-DE')} Münzen in Minispielen`,
   },
-  { type: 'bomb', targets: [2, 3, 5], reward: (n) => n * 120, text: (m) => `Entschärfe ${m.target} Bomben` },
-  { type: 'headshots', targets: [10, 20, 35], reward: (n) => n * 12, text: (m) => `Schaffe ${m.target} Kopfschüsse` },
-  { type: 'aimHits', targets: [30, 60, 100], reward: (n) => n * 6, text: (m) => `Triff ${m.target} Ziele im Aim-Training` },
+  { type: 'bomb', targets: [2, 3, 5], reward: (n) => n * 360, text: (m) => `Entschärfe ${m.target} Bomben` },
+  { type: 'headshots', targets: [10, 20, 35], reward: (n) => n * 36, text: (m) => `Schaffe ${m.target} Kopfschüsse` },
+  { type: 'aimHits', targets: [30, 60, 100], reward: (n) => n * 18, text: (m) => `Triff ${m.target} Ziele im Aim-Training` },
+  { type: 'capsules', targets: [5, 10, 20], reward: (n) => n * 90, text: (m) => `Öffne ${m.target} Sticker-Kapseln` },
+  { type: 'stickers', targets: [1, 3, 5], reward: (n) => n * 300, text: (m) => `Klebe ${m.target} Sticker auf Waffen` },
   {
     type: 'reaction',
     targets: [320, 280, 250],
-    reward: (ms) => Math.round(150000 / ms),
+    reward: (ms) => Math.round(450000 / ms),
     text: (m) => `Reagiere schneller als ${m.param} ms`,
   },
 ]
@@ -76,7 +79,7 @@ export function missionText(m: Mission): string {
   return MISSION_TEMPLATES.find((t) => t.type === m.type)?.text(m) ?? ''
 }
 
-export const MISSION_BONUS = { coins: 500, caseId: 'neon' }
+export const MISSION_BONUS = { coins: 1500, caseId: 'neon' }
 
 export function dayKey(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -126,7 +129,7 @@ export function albumProgress(s: SaveState, c: CaseDef) {
 }
 
 export function albumRewards(c: CaseDef) {
-  return { base: c.price * 15, full: c.price * 100 }
+  return { base: c.price * 30, full: c.price * 200 }
 }
 
 function albumComplete(s: SaveState, c: CaseDef, full: boolean): boolean {
@@ -184,6 +187,13 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'albumAll', icon: '🏆', name: 'Komplettist', desc: 'Vervollständige alle Alben mit allen ★', reward: 100000, check: (s) => CASES.every((c) => albumComplete(s, c, true)) },
   { id: 'event', icon: '🍀', name: 'Glückspilz', desc: 'Erlebe ein Zufalls-Ereignis', reward: 200, check: (s) => s.stats.events >= 1 },
   { id: 'daily7', icon: '📅', name: 'Stammgast', desc: 'Hol dir 7-mal den Tagesbonus', reward: 2000, check: (s) => s.stats.dailies >= 7 },
+  { id: 'sticker1', icon: '🏷️', name: 'Bastler', desc: 'Klebe deinen ersten Sticker auf eine Waffe', reward: 300, check: (s) => s.stats.stickersApplied >= 1 },
+  { id: 'craft4', icon: '🎨', name: 'Kunstwerk', desc: 'Eine Waffe mit 4 Stickern', reward: 1500, check: (s) => s.items.some((i) => (i.stickers ?? []).filter(Boolean).length >= 4) },
+  { id: 'capsule100', icon: '💊', name: 'Sticker-Sucht', desc: 'Öffne 100 Kapseln', reward: 3000, check: (s) => s.stats.capsulesOpened >= 100 },
+  { id: 'holoSticker', icon: '🌈', name: 'Glänzend', desc: 'Ziehe einen Holo-Sticker', reward: 1000, check: (s) => s.stats.stickerDrops.holo >= 1 },
+  { id: 'goldSticker', icon: '🥇', name: 'Goldjunge', desc: 'Ziehe einen Gold-Sticker', reward: 5000, check: (s) => s.stats.stickerDrops.gold >= 1 },
+  { id: 'press10', icon: '🖨️', name: 'Gelddrucker', desc: 'Bring die Geldpresse auf Stufe 10', reward: 5000, check: (s) => s.press.speed >= 10 },
+  { id: 'drops50', icon: '📦', name: 'Kistenschlepper', desc: 'Bekomme 50 Cases als Drop', reward: 2500, check: (s) => s.stats.casesDropped >= 50 },
   { id: 'missions10', icon: '✅', name: 'Pflichtbewusst', desc: 'Erledige 10 Missionen', reward: 1500, check: (s) => s.stats.missionsDone >= 10 },
   { id: 'sell1000', icon: '🏪', name: 'Großhändler', desc: 'Verkaufe 1.000 Skins', reward: 3000, check: (s) => s.stats.soldCount >= 1000 },
 ]
@@ -212,3 +222,31 @@ export function activeEvent(s: SaveState, id: EventId): boolean {
 
 export const CASE_DISCOUNT = 0.7
 export const SELL_BONUS = 1.25
+
+// ---------- Geldpresse ----------
+
+export const PRESS_MAX = { speed: 50, ink: 10, vault: 23 }
+
+/** Münzen pro Sekunde */
+export function pressRate(p: PressState): number {
+  return (0.5 + 0.5 * p.speed) * Math.pow(1.25, p.ink)
+}
+
+/** Wie lange die Presse ohne Einsammeln weiterdruckt (in Sekunden) */
+export function pressCap(p: PressState): number {
+  return 3600 * (1 + p.vault)
+}
+
+export function pressStored(p: PressState, now = Date.now()): number {
+  const secs = Math.min(pressCap(p), Math.max(0, (now - p.last) / 1000))
+  return Math.floor(secs * pressRate(p))
+}
+
+export function pressUpgradeCost(kind: keyof typeof PRESS_MAX, p: PressState): number {
+  if (kind === 'speed') return Math.round(400 * Math.pow(1.6, p.speed - 1))
+  if (kind === 'ink') return Math.round(3000 * Math.pow(2.2, p.ink))
+  return Math.round(1000 * Math.pow(1.8, p.vault))
+}
+
+export const HOURLY_COOLDOWN = 60 * 60 * 1000
+export const HOURLY_COINS = 600

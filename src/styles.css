@@ -563,14 +563,18 @@ h3 {
 }
 
 .strip-marker {
+  --mc: var(--accent);
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
   width: 3px;
   transform: translateX(-50%);
-  background: var(--accent);
-  box-shadow: 0 0 14px var(--accent);
+  background: var(--mc);
+  box-shadow: 0 0 16px var(--mc);
+  transition:
+    background 0.08s,
+    box-shadow 0.08s;
 }
 
 .strip-marker::before,
@@ -584,12 +588,12 @@ h3 {
 
 .strip-marker::before {
   top: 0;
-  border-top-color: var(--accent);
+  border-top-color: var(--mc);
 }
 
 .strip-marker::after {
   bottom: 0;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--mc);
 }
 
 .strip.done .strip-card {
@@ -599,7 +603,16 @@ h3 {
 
 .strip.done .win .strip-card {
   opacity: 1;
-  box-shadow: 0 0 30px var(--rc);
+  box-shadow: 0 0 34px var(--rc);
+  animation: winpop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes winpop {
+  50% {
+    transform: scale(1.12);
+  }
 }
 
 /* ---------- Ergebnis ---------- */
@@ -2532,5 +2545,600 @@ select {
 
   .reaction-text {
     font-size: 36px;
+  }
+}
+
+/* =========================================================
+   Version 3: Sticker, Kapseln, Schlüssel, Geldpresse, Spam
+   ========================================================= */
+
+.holo-shift {
+  animation: holo 3s linear infinite;
+}
+
+@keyframes holo {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* ---------- Leertaste spammen ---------- */
+
+.case3d.spam {
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.spam-ui {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2;
+  width: min(86%, 420px);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.spam-hint {
+  margin: 0 0 8px;
+  font-family: var(--head);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 20px rgba(255, 122, 24, 0.8);
+  animation: spamPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes spamPulse {
+  to {
+    transform: scale(1.06);
+    color: #ffd9b0;
+  }
+}
+
+.spam-bar {
+  height: 14px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.spam-bar div {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd23d, var(--accent), #ff3d3d);
+  box-shadow: 0 0 16px var(--accent);
+  transition: width 0.08s;
+}
+
+.spam-count {
+  margin: 8px 0 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.capsule-gate {
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.capsule-shake {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.06s;
+}
+
+.capsule-shake.popped {
+  animation: capPop 0.45s ease-in forwards;
+}
+
+@keyframes capPop {
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.capsule-big {
+  width: min(60vw, 280px);
+}
+
+.capsule-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.case3d-flash.pop {
+  animation: flashPop 0.45s ease-in forwards;
+}
+
+@keyframes flashPop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- Ergebnis ---------- */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.hero-rays {
+  position: absolute;
+  left: 25%;
+  top: 50%;
+  width: 900px;
+  height: 900px;
+  margin: -450px 0 0 -450px;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rc) 35%, transparent) 0deg 8deg, transparent 8deg 22deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 60%);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 60%);
+  animation: spin 14s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hero-sticker {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.6));
+  animation: float 3s ease-in-out infinite;
+}
+
+.sticker-strip .sticker-art,
+.sticker-card .sticker-art,
+.sticker-mini .art {
+  padding: 6px;
+}
+
+/* ---------- Shop ---------- */
+
+.shop-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.shop-tabs button {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  padding: 9px 16px;
+  border-radius: 99px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shop-tabs button.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(255, 122, 24, 0.15);
+}
+
+.owned {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.owned-chip {
+  font-weight: 700;
+  font-size: 14px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.owned-chip.has {
+  color: var(--text);
+  border-color: rgba(61, 220, 132, 0.6);
+  background: rgba(61, 220, 132, 0.12);
+}
+
+.buy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.key-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}
+
+.open-hint {
+  margin: 14px 0 0;
+}
+
+.open-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+/* ---------- Sticker auf Waffen ---------- */
+
+.sticker-slots {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.slots-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.slot {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 2px dashed var(--line);
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 26px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+}
+
+.slot.filled {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.slot svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sticker-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: #0d0f16;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pick:hover {
+  border-color: var(--accent);
+}
+
+.pick svg {
+  width: 52px;
+  height: 52px;
+}
+
+.pick span {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.sticker-modal-art {
+  display: grid;
+  place-items: center;
+}
+
+.sticker-big {
+  width: 200px;
+  height: 200px;
+}
+
+/* ---------- Kisten im Inventar ---------- */
+
+.crate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.crate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  cursor: pointer;
+}
+
+.crate:hover {
+  border-color: var(--accent);
+}
+
+.crate-art {
+  width: 120px;
+}
+
+.crate-open {
+  font-size: 13px;
+  color: var(--accent2);
+  font-weight: 700;
+}
+
+/* ---------- Geldpresse ---------- */
+
+.press {
+  margin: 16px 0 12px;
+  padding: 18px;
+  border-radius: var(--radius);
+  background: radial-gradient(circle at 12% 30%, rgba(61, 220, 132, 0.16), transparent 55%), var(--panel);
+  border: 1px solid rgba(61, 220, 132, 0.35);
+}
+
+.press-main {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.press-machine {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: #0d0f16;
+  overflow: hidden;
+}
+
+.press-icon {
+  font-size: 64px;
+}
+
+.press-machine.running .press-icon {
+  animation: rattle 0.18s linear infinite;
+}
+
+.bill {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  font-size: 22px;
+  animation: bill 1.6s linear infinite;
+  opacity: 0;
+}
+
+.bill.b2 {
+  animation-delay: 0.55s;
+}
+
+.bill.b3 {
+  animation-delay: 1.1s;
+}
+
+@keyframes bill {
+  0% {
+    transform: translate(-50%, 0) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(10px, -90px) rotate(40deg);
+    opacity: 0;
+  }
+}
+
+.press-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.press-info h3 {
+  font-size: 22px;
+}
+
+.press-amount {
+  margin: 2px 0;
+  font-family: var(--head);
+  font-size: 40px;
+  font-weight: 700;
+  color: #3ddc84;
+  font-variant-numeric: tabular-nums;
+}
+
+.press-info p {
+  margin: 4px 0;
+}
+
+.press-bar {
+  margin: 8px 0 4px;
+}
+
+.press-bar div {
+  background: linear-gradient(90deg, #3ddc84, #ffd23d);
+  box-shadow: 0 0 10px rgba(61, 220, 132, 0.6);
+}
+
+.press-info .btn {
+  margin-top: 6px;
+}
+
+.press-upgrades {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.press-up {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  cursor: pointer;
+}
+
+.press-up:hover:not(:disabled) {
+  border-color: #3ddc84;
+}
+
+.press-up:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.up-icon {
+  font-size: 26px;
+}
+
+.up-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.up-cost {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--accent2);
+  white-space: nowrap;
+}
+
+.hourly {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.hourly > div {
+  flex: 1;
+}
+
+.hourly p {
+  margin: 2px 0 0;
+}
+
+.hourly.ready {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(255, 122, 24, 0.2);
+}
+
+.hourly-icon {
+  font-size: 30px;
+}
+
+.hourly-wait {
+  font-family: var(--head);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .press-main {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .press-amount {
+    font-size: 34px;
+  }
+
+  .spam-hint {
+    font-size: 24px;
+  }
+
+  .hero-sticker {
+    width: 160px;
+    height: 160px;
+  }
+
+  .hero-rays {
+    left: 50%;
+    top: 35%;
+  }
+
+  .crate-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-shift,
+  .hero-rays,
+  .bill {
+    animation: none;
   }
 }

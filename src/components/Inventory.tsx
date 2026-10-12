@@ -1,19 +1,27 @@
 import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { RARITIES, RARITY_ORDER, getSkin } from '../game/data'
+import { CASES, RARITIES, RARITY_ORDER, getSkin } from '../game/data'
 import type { RarityId } from '../game/data'
-import { itemValue, rarityRank } from '../game/roll'
-import type { Item } from '../game/roll'
+import { itemValue, rarityRank, stickerValue } from '../game/roll'
+import type { Item, StickerItem } from '../game/roll'
 import * as sound from '../game/sound'
+import { CAPSULES, capsuleLabel, getSticker } from '../game/stickers'
 import { formatCoins, useStore } from '../game/store'
-import { ItemCard } from './ItemCard'
+import type { Focus } from './CasesView'
+import { ItemCard, StickerCard } from './ItemCard'
 import { ItemModal } from './ItemModal'
+import { StickerModal } from './StickerModal'
+import { CapsuleArt, CaseArt, KeyArt } from './WeaponArt'
 
 type Sort = 'neu' | 'wert' | 'selten'
 const PAGE = 120
 
-export function Inventory({ onGoCases }: { onGoCases: () => void }) {
+type InvTab = 'waffen' | 'sticker' | 'kisten'
+
+export function Inventory({ onGoCases, onOpen }: { onGoCases: () => void; onOpen: (f: Focus) => void }) {
   const { state, sell, toast } = useStore()
+  const [tab, setTab] = useState<InvTab>('waffen')
+  const [stickerDetail, setStickerDetail] = useState<StickerItem | null>(null)
   const [filter, setFilter] = useState<RarityId | 'alle'>('alle')
   const [sort, setSort] = useState<Sort>('neu')
   const [limit, setLimit] = useState(PAGE)
@@ -49,9 +57,69 @@ export function Inventory({ onGoCases }: { onGoCases: () => void }) {
     setConfirm(null)
   }
 
+  const tabs = (
+    <div className="shop-tabs">
+      <button type="button" className={tab === 'waffen' ? 'active' : ''} onClick={() => setTab('waffen')}>
+        🔫 Waffen ({formatCoins(state.items.length)})
+      </button>
+      <button type="button" className={tab === 'sticker' ? 'active' : ''} onClick={() => setTab('sticker')}>
+        🏷️ Sticker ({formatCoins(state.stickers.length)})
+      </button>
+      <button type="button" className={tab === 'kisten' ? 'active' : ''} onClick={() => setTab('kisten')}>
+        📦 Kisten
+      </button>
+    </div>
+  )
+
+  if (tab === 'sticker') {
+    return (
+      <div className="inventory">
+        {tabs}
+        <StickerList items={state.stickers} onSelect={setStickerDetail} />
+        {stickerDetail && <StickerModal item={stickerDetail} onClose={() => setStickerDetail(null)} />}
+      </div>
+    )
+  }
+
+  if (tab === 'kisten') {
+    const cases = CASES.filter((c) => (state.cases[c.id] ?? 0) > 0 || (state.keys[c.id] ?? 0) > 0)
+    const caps = CAPSULES.filter((c) => (state.capsules[c.id] ?? 0) > 0)
+    return (
+      <div className="inventory">
+        {tabs}
+        {cases.length === 0 && caps.length === 0 && (
+          <p className="muted">
+            Keine Kisten. Cases droppen beim Minispielen, beim Stunden-Bonus und beim Level-Up – oder du kaufst sie im Shop.
+          </p>
+        )}
+        <div className="crate-grid">
+          {cases.map((c) => (
+            <button type="button" key={c.id} className="crate" onClick={() => onOpen({ kind: 'case', id: c.id })}>
+              <CaseArt colors={c.colors} label={c.name.replace('-Case', '').toUpperCase()} className="crate-art" />
+              <strong>{c.name}</strong>
+              <span>
+                📦 {state.cases[c.id] ?? 0} · <KeyArt color={c.colors[1]} className="key-icon" /> {state.keys[c.id] ?? 0}
+              </span>
+              <span className="crate-open">Öffnen →</span>
+            </button>
+          ))}
+          {caps.map((c) => (
+            <button type="button" key={c.id} className="crate" onClick={() => onOpen({ kind: 'capsule', id: c.id })}>
+              <CapsuleArt colors={c.colors} label={capsuleLabel(c)} className="crate-art" />
+              <strong>{c.name}</strong>
+              <span>💊 {state.capsules[c.id]}</span>
+              <span className="crate-open">Öffnen →</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (state.items.length === 0) {
     return (
       <div className="empty">
+        {tabs}
         <p className="big-emoji">🎒</p>
         <h2>Dein Inventar ist leer</h2>
         <p className="muted">Öffne ein paar Cases, dann landen deine Skins hier.</p>
@@ -64,6 +132,7 @@ export function Inventory({ onGoCases }: { onGoCases: () => void }) {
 
   return (
     <div className="inventory">
+      {tabs}
       <div className="inv-head">
         <div>
           <h2 className="section-title">Inventar</h2>
@@ -140,5 +209,50 @@ export function Inventory({ onGoCases }: { onGoCases: () => void }) {
         </div>
       )}
     </div>
+  )
+}
+
+const STICKER_PAGE = 120
+
+function StickerList({ items, onSelect }: { items: StickerItem[]; onSelect: (s: StickerItem) => void }) {
+  const { sell, toast } = useStore()
+  const [limit, setLimit] = useState(STICKER_PAGE)
+  const sorted = useMemo(() => [...items].sort((a, b) => stickerValue(b) - stickerValue(a)), [items])
+  const papers = items.filter((x) => getSticker(x.stickerId)?.finish === 'papier')
+  const total = items.reduce((s, x) => s + stickerValue(x), 0)
+  if (items.length === 0) {
+    return <p className="muted">Noch keine Sticker. Öffne Sticker-Kapseln im Shop – die erste Meme-Kapsel hast du schon!</p>
+  }
+  return (
+    <>
+      <div className="inv-head">
+        <p className="muted">
+          {formatCoins(items.length)} Sticker · Gesamtwert <strong>🪙 {formatCoins(total)}</strong>
+        </p>
+        {papers.length > 0 && (
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={() => {
+              const got = sell(papers.map((x) => x.uid))
+              sound.coin()
+              toast(`+${formatCoins(got)} Münzen`, 'good')
+            }}
+          >
+            Alle Papier-Sticker verkaufen
+          </button>
+        )}
+      </div>
+      <div className="result-grid">
+        {sorted.slice(0, limit).map((x) => (
+          <StickerCard key={x.uid} item={x} onClick={() => onSelect(x)} />
+        ))}
+      </div>
+      {sorted.length > limit && (
+        <button type="button" className="btn ghost wide" onClick={() => setLimit((l) => l + STICKER_PAGE)}>
+          Mehr anzeigen
+        </button>
+      )}
+    </>
   )
 }

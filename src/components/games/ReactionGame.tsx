@@ -9,12 +9,12 @@ const ROUNDS = 5
 type Phase = 'idle' | 'wait' | 'go' | 'shown' | 'early' | 'end'
 
 function coinsFor(ms: number): number {
-  if (ms < 180) return 150
-  if (ms < 220) return 110
-  if (ms < 260) return 80
-  if (ms < 320) return 55
-  if (ms < 400) return 35
-  return 15
+  if (ms < 180) return 450
+  if (ms < 220) return 330
+  if (ms < 260) return 240
+  if (ms < 320) return 165
+  if (ms < 400) return 105
+  return 45
 }
 
 function verdict(ms: number): string {
@@ -106,7 +106,7 @@ export function ReactionGame({ onBack }: { onBack: () => void }) {
     <div className="aim">
       <GameHead
         title="⚡ Reaktionstest"
-        desc="Warte, bis das Feld grün wird – dann so schnell wie möglich tippen. Unter 180 ms gibt es 🪙 150. Zu früh tippen gibt nichts!"
+        desc="Warte, bis das Feld grün wird – dann so schnell wie möglich tippen. Unter 180 ms gibt es 🪙 450. Zu früh tippen gibt nichts!"
         onBack={onBack}
         stats={
           <>

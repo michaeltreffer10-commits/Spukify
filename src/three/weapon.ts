@@ -1,26 +1,46 @@
-// Baut aus den 2D-Silhouetten echte 3D-Waffen.
+// Baut aus den 2D-Modellen echte 3D-Waffen.
 import * as THREE from 'three'
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js'
-import { SHAPES, STICKER_SPOTS, patternMarkup } from '../game/art'
+import { patternMarkup } from '../game/art'
 import type { Skin } from '../game/data'
+import { MODELS } from '../game/models'
+import type { ModelPart } from '../game/models'
+import { getSticker, stickerMarkup } from '../game/stickers'
 
 const SCALE = 0.022
 
-/** Das Skin-Muster als Textur, mit Kratzern je nach Abnutzung */
+async function svgToCanvas(svg: string, w: number, h: number): Promise<HTMLCanvasElement> {
+  const img = new Image()
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+  await img.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+  return canvas
+}
+
+/** Das Skin-Muster als Textur, mit Fugen und Kratzern je nach Abnutzung */
 export async function skinTexture(skin: Skin, float: number): Promise<THREE.CanvasTexture> {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="448" viewBox="0 0 256 112"><defs>${patternMarkup(
     'p',
     skin.pattern,
     skin.colors,
   )}</defs><rect width="256" height="112" fill="url(#p)"/></svg>`
-  const img = new Image()
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
-  await img.decode()
-  const canvas = document.createElement('canvas')
-  canvas.width = 1024
-  canvas.height = 448
+  const canvas = await svgToCanvas(svg, 1024, 448)
   const g = canvas.getContext('2d')!
-  g.drawImage(img, 0, 0)
+
+  // Fugen und Rillen des Modells
+  const details = MODELS[skin.model].details
+  if (details) {
+    g.save()
+    g.scale(4, 4)
+    g.strokeStyle = 'rgba(0,0,0,0.5)'
+    g.lineWidth = 0.9
+    g.lineCap = 'round'
+    g.stroke(new Path2D(details))
+    g.restore()
+  }
 
   // Abnutzung: Kratzer …
   const scratches = Math.floor(float * 260)
@@ -55,81 +75,112 @@ export async function skinTexture(skin: Skin, float: number): Promise<THREE.Canv
   return tex
 }
 
-function stickerTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = c.height = 128
-  const g = c.getContext('2d')!
-  const grad = g.createLinearGradient(0, 0, 128, 128)
-  ;['#ff4d4d', '#ffe14d', '#4dff9a', '#4db8ff', '#d44dff'].forEach((col, i) => grad.addColorStop(i / 4, col))
-  g.fillStyle = grad
-  g.fillRect(0, 0, 128, 128)
-  g.fillStyle = '#fff'
-  g.font = '900 72px Arial, sans-serif'
-  g.textAlign = 'center'
-  g.textBaseline = 'middle'
-  g.fillText('R', 64, 68)
-  const t = new THREE.CanvasTexture(c)
-  t.colorSpace = THREE.SRGBColorSpace
-  return t
+/** Texturen für alle Sticker (Schlüssel: Sticker-ID) */
+export async function stickerTextures(ids: string[]): Promise<Map<string, THREE.CanvasTexture>> {
+  const map = new Map<string, THREE.CanvasTexture>()
+  for (const id of new Set(ids)) {
+    const def = getSticker(id)
+    if (!def) continue
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-2 -2 68 68">${stickerMarkup(def, 's')}</svg>`
+    const tex = new THREE.CanvasTexture(await svgToCanvas(svg, 256, 256))
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.flipY = false
+    tex.anisotropy = 4
+    map.set(id, tex)
+  }
+  return map
+}
+
+function partPath(p: ModelPart): Path2D {
+  const path = new Path2D(p.d)
+  if (!p.t) return path
+  // Nur „translate(x y) scale(s)“ wird gebraucht
+  const tr = /translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(p.t)
+  const sc = /scale\(([-\d.]+)\)/.exec(p.t)
+  const m = new DOMMatrix()
+  if (tr) m.translateSelf(Number(tr[1]), Number(tr[2]))
+  if (sc) m.scaleSelf(Number(sc[1]))
+  const out = new Path2D()
+  out.addPath(path, m)
+  return out
 }
 
 const loader = new SVGLoader()
 
-export function buildWeapon(skin: Skin, float: number, tex: THREE.Texture): THREE.Group {
+export function buildWeapon(
+  skin: Skin,
+  float: number,
+  tex: THREE.Texture,
+  stickers: (string | null)[] = [],
+  stickerTex: Map<string, THREE.Texture> = new Map(),
+): THREE.Group {
+  const model = MODELS[skin.model]
   const inner = new THREE.Group()
-  const face = new THREE.MeshPhysicalMaterial({
+  const paint = new THREE.MeshPhysicalMaterial({
     map: tex,
-    metalness: 0.35,
+    metalness: 0.3,
     roughness: 0.22 + float * 0.55,
     clearcoat: Math.max(0, 1 - float * 1.5),
     clearcoatRoughness: 0.15,
   })
-  const side = new THREE.MeshStandardMaterial({
+  const paintSide = new THREE.MeshStandardMaterial({
     color: new THREE.Color(skin.colors[0]).multiplyScalar(0.7),
-    metalness: 0.6,
+    metalness: 0.5,
     roughness: 0.45,
   })
+  const metal = new THREE.MeshStandardMaterial({ color: '#6b717b', metalness: 0.95, roughness: 0.32 })
+  const dark = new THREE.MeshStandardMaterial({ color: '#1d1e22', metalness: 0.15, roughness: 0.75 })
 
-  let maxDepth = 0
-  for (const part of SHAPES[skin.shape]) {
+  const ctx = document.createElement('canvas').getContext('2d')!
+  const hitParts = model.parts.map((p) => ({ path: partPath(p), depth: p.depth ?? 12 }))
+
+  for (const part of model.parts) {
     const depth = part.depth ?? 12
-    maxDepth = Math.max(maxDepth, depth)
     const data = loader.parse(
-      `<svg xmlns="http://www.w3.org/2000/svg"><path d="${part.d}" fill="#000"${part.evenOdd ? ' fill-rule="evenodd"' : ''}/></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg"><path d="${part.d}" fill="#000"${part.evenOdd ? ' fill-rule="evenodd"' : ''}${
+        part.t ? ` transform="${part.t}"` : ''
+      }/></svg>`,
     )
+    const mats: THREE.Material[] =
+      part.mat === 'metal' ? [metal, metal] : part.mat === 'dark' ? [dark, dark] : [paint, paintSide]
     for (const p of data.paths) {
       const geo = new THREE.ExtrudeGeometry(SVGLoader.createShapes(p), {
         depth,
         bevelEnabled: true,
-        bevelThickness: 1.1,
-        bevelSize: 0.7,
+        bevelThickness: 1,
+        bevelSize: 0.6,
         bevelSegments: 3,
         curveSegments: 18,
       })
       geo.translate(0, 0, -depth / 2)
-      inner.add(new THREE.Mesh(geo, [face, side]))
+      inner.add(new THREE.Mesh(geo, mats))
     }
   }
 
-  if (skin.stickers) {
-    const holo = new THREE.MeshPhysicalMaterial({
-      map: stickerTexture(),
-      metalness: 0.8,
-      roughness: 0.15,
-      iridescence: 1,
-      iridescenceIOR: 1.9,
+  // Sticker als echte Aufkleber auf der Vorderseite
+  const applied = skin.builtInStickers ?? stickers
+  ;(model.stickers ?? []).forEach((spot, i) => {
+    const id = applied[i]
+    const t = id ? stickerTex.get(id) : undefined
+    const def = id ? getSticker(id) : undefined
+    if (!t || !def) return
+    // Dicke an dieser Stelle: das dickste Teil, das den Punkt enthält
+    let z = 6
+    for (const h of hitParts) if (ctx.isPointInPath(h.path, spot.x, spot.y)) z = Math.max(z, h.depth / 2)
+    const mat = new THREE.MeshPhysicalMaterial({
+      map: t,
+      transparent: true,
+      alphaTest: 0.2,
+      metalness: def.finish === 'gold' ? 0.9 : 0.1,
+      roughness: def.finish === 'papier' ? 0.6 : 0.2,
+      iridescence: def.finish === 'holo' ? 1 : 0,
+      iridescenceIOR: 1.8,
+      clearcoat: def.finish === 'papier' ? 0 : 1,
     })
-    const edge = new THREE.MeshStandardMaterial({ color: '#ddd', metalness: 1, roughness: 0.2 })
-    for (const s of STICKER_SPOTS) {
-      for (const dir of [1, -1]) {
-        const geo = new THREE.CylinderGeometry(s.r, s.r, 0.6, 40)
-        geo.rotateX((dir * Math.PI) / 2)
-        const m = new THREE.Mesh(geo, [edge, holo, edge])
-        m.position.set(s.x, s.y, dir * (maxDepth / 2 + 1.4))
-        inner.add(m)
-      }
-    }
-  }
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(17, 17), mat)
+    plane.position.set(spot.x, spot.y, z + 1.15)
+    inner.add(plane)
+  })
 
   const box = new THREE.Box3().setFromObject(inner)
   const center = box.getCenter(new THREE.Vector3())
